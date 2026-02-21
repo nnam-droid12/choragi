@@ -24,7 +24,7 @@
 		<module>site-builder</module>
 		<module>digital-promoter</module>
 		<module>event-manager</module>
-		<module>ui-dashboard</module>
+		<module>ui_client</module>
 	</modules>
 
 	<properties>

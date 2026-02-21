@@ -10,9 +10,12 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>ui-dashboard</artifactId>
-    <name>ui-dashboard</name>
-    <description>Choragi Live Frontend Monitor</description>
+    <artifactId>ui_client</artifactId>
+    <name>ui_client</name>
+    <description>Choragi Venue Scout Agent</description>
+
+    <dependencies>
+    </dependencies>
 
     <build>
         <plugins>
