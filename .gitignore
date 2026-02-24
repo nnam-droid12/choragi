@@ -31,3 +31,16 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Google Cloud Keys
+*.json
+nixora-project-cc817d9c4234.json
+
+# Spring Boot specific
+.idea/
+*.class
+
+
+# Ignore sensitive configuration files
+event-manager/src/main/resources/application.yml
+venue-finder/src/main/resources/application.yml

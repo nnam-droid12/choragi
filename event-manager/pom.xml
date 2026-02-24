@@ -14,6 +14,16 @@
     <name>event-manager</name>
     <description>Choragi Root Orchestrator and State Tracker</description>
 
+    <dependencies>
+
+        <dependency>
+            <groupId>com.google.cloud</groupId>
+            <artifactId>spring-cloud-gcp-starter-bigquery</artifactId>
+        </dependency>
+
+    </dependencies>
+
+
     <build>
         <plugins>
             <plugin>

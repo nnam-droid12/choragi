@@ -10,8 +10,8 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>ui_client</artifactId>
-    <name>ui_client</name>
+    <artifactId>ui-client</artifactId>
+    <name>ui-client</name>
     <description>Choragi Venue Scout Agent</description>
 
     <dependencies>
