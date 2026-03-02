@@ -5,10 +5,7 @@ import com.choragi.venue.tools.GoogleMapsSearchTool;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.Client;
-import com.google.genai.types.Content;
-import com.google.genai.types.GenerateContentConfig;
-import com.google.genai.types.Part;
-import com.google.genai.types.ThinkingConfig;
+import com.google.genai.types.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -26,35 +23,30 @@ public class VenueScoutAgent {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public List<VenueLead> scoutVenues(String city, String artistProfile) {
-        log.info("Choragi Scout: Searching in {}", city);
+        log.info("Choragi Scout: Starting search in {}", city);
 
         String rawVenueData = mapsTool.searchVenues(city, "live music venues");
         String modelId = "gemini-3.1-pro-preview";
 
         String systemInstructionText = "You are a venue scouting agent. " +
                 "Analyze the provided JSON data and return a JSON ARRAY of the top 5 venues. " +
-                "Return ONLY the JSON array. " +
                 "Each object must strictly follow this schema: " +
                 "{\"name\": \"string\", \"address\": \"string\", \"reasoning\": \"string\"}";
 
         GenerateContentConfig config = GenerateContentConfig.builder()
                 .systemInstruction(Content.fromParts(Part.fromText(systemInstructionText)))
-                .thinkingConfig(ThinkingConfig.builder().includeThoughts(false).build())
                 .responseMimeType("application/json")
                 .build();
 
         String userPrompt = "Artist Profile: " + artistProfile + "\nRaw Data: " + rawVenueData;
 
         try {
-            log.info("Choragi Scout: Analyzing data with Gemini 3.1 Pro...");
             var response = client.models.generateContent(modelId, userPrompt, config);
-
-            // Convert the AI's JSON string into a List of VenueLead objects
+            // Directly parse the AI string into our typed List
             return objectMapper.readValue(response.text(), new TypeReference<List<VenueLead>>() {});
-
         } catch (Exception e) {
-            log.error("Choragi Scout: Failed to parse AI response into VenueLeads", e);
-            return new ArrayList<>(); // Return empty list on failure
+            log.error("Scout failed to parse response", e);
+            return new ArrayList<>();
         }
     }
 }
