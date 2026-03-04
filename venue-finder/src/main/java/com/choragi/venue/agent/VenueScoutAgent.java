@@ -42,7 +42,7 @@ public class VenueScoutAgent {
 
         try {
             var response = client.models.generateContent(modelId, userPrompt, config);
-            // Directly parse the AI string into our typed List
+
             return objectMapper.readValue(response.text(), new TypeReference<List<VenueLead>>() {});
         } catch (Exception e) {
             log.error("Scout failed to parse response", e);

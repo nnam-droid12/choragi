@@ -15,7 +15,8 @@ public class GenAIConfig {
     public Client genAiClient() {
         return Client.builder()
                 .project(projectId)
-                .location("global")
+                // FIX 1: The Live API requires a specific region. 'us-central1' is the standard.
+                .location("us-central1")
                 .vertexAI(true)
                 .build();
     }
