@@ -11,12 +11,21 @@ public class GenAIConfig {
     @Value("${spring.cloud.gcp.project-id}")
     private String projectId;
 
-    @Bean
-    public Client genAiClient() {
+    @Bean(name = "voiceClient")
+    public Client voiceClient() {
         return Client.builder()
                 .project(projectId)
-                // FIX 1: The Live API requires a specific region. 'us-central1' is the standard.
                 .location("us-central1")
+                .vertexAI(true)
+                .build();
+    }
+
+
+    @Bean(name = "textClient")
+    public Client textClient() {
+        return Client.builder()
+                .project(projectId)
+                .location("global")
                 .vertexAI(true)
                 .build();
     }

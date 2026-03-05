@@ -18,14 +18,12 @@ public class GoogleMapsSearchTool {
     public String searchVenues(String city, String query) {
         String url = "https://places.googleapis.com/v1/places:searchText";
 
-
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Goog-Api-Key", apiKey);
 
 
-        headers.set("X-Goog-FieldMask", "places.displayName,places.formattedAddress,places.types");
-
+        headers.set("X-Goog-FieldMask", "places.displayName,places.formattedAddress,places.types,places.nationalPhoneNumber");
 
         Map<String, String> body = new HashMap<>();
         body.put("textQuery", query + " in " + city);

@@ -10,6 +10,7 @@ import lombok.AllArgsConstructor;
 public class VenueLead {
     private String name;
     private String address;
+    private String phoneNumber;
     private String reasoning;
-    private String status = "PENDING"; // Default status for negotiation
+    private String status = "PENDING";
 }

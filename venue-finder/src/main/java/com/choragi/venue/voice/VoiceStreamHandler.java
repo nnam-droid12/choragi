@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
@@ -12,6 +13,8 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.ByteArrayOutputStream;
 import java.lang.reflect.Method;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -24,7 +27,8 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
     private final Client client;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public VoiceStreamHandler(Client client) {
+
+    public VoiceStreamHandler(@Qualifier("voiceClient") Client client) {
         this.client = client;
     }
 
@@ -38,19 +42,35 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                 String streamSid = json.get("start").get("streamSid").asText();
                 log.info("Choragi Voice: Connecting to Gemini Live for stream: {}", streamSid);
 
-                // Initialize our Voice Activity Detection (VAD) buffers
+                // DYNAMIC VENUE EXTRACTION: Read the venue name from the Twilio URL
+                String targetVenue = "your venue";
+                if (session.getUri() != null && session.getUri().getQuery() != null) {
+                    String query = session.getUri().getQuery();
+                    if (query.contains("venue=")) {
+                        targetVenue = URLDecoder.decode(query.split("venue=")[1].split("&")[0], StandardCharsets.UTF_8);
+                        log.info("Successfully extracted dynamic venue name: {}", targetVenue);
+                    }
+                }
+
                 session.getAttributes().put("audioBuffer", new ByteArrayOutputStream());
                 session.getAttributes().put("silenceCount", 0);
                 session.getAttributes().put("hasSpoken", false);
 
-                String modelId = "gemini-2.0-flash-live-preview-04-09";
+                // STRICTLY USING GEMINI 2.5 NATIVE AUDIO
+                String modelId = "gemini-live-2.5-flash-native-audio";
 
                 LiveConnectConfig connectConfig = LiveConnectConfig.builder()
                         .responseModalities(com.google.genai.types.Modality.Known.AUDIO)
                         .systemInstruction(Content.fromParts(Part.fromText(
-                                "You are the Choragi AI Booking Manager. Negotiate professionally with the venue manager. Keep your responses conversational and brief.")))
+                                "You are an Event Manager calling from Choragi. You are calling a venue to book a music concert space. " +
+                                        "CRITICAL RULES: " +
+                                        "1. IGNORE BACKGROUND NOISE: The line has heavy static. STRICTLY IGNORE IT. Never ask about storms or safety. " +
+                                        "2. EXTREME BREVITY: Reply with exactly ONE short sentence. " +
+                                        "3. YOUR GOAL: Ask if they have music concert space available. If yes, ask how to book it. " +
+                                        "4. ENDING: Once they explain the booking process, say exactly: 'Okay, thank you. I will get back to you.' and stop talking.")))
                         .build();
 
+                String finalTargetVenue = targetVenue; // Required for lambda
                 client.async.live.connect(modelId, connectConfig)
                         .thenAccept(geminiSession -> {
                             session.getAttributes().put("geminiSession", geminiSession);
@@ -60,21 +80,22 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                                 Method clientMethod = geminiSession.getClass().getMethod("sendClientContent", LiveSendClientContentParameters.class);
                                 session.getAttributes().put("clientContentMethod", clientMethod);
 
-                                // 1. SEND THE GREETING
+
+                                String greetingPrompt = String.format("Please start the call by saying exactly: 'Hello, I am calling from Choragi. We are looking to book a music concert space at %s. Do you have any space available?'", finalTargetVenue);
+
                                 LiveSendClientContentParameters nudgeParams = LiveSendClientContentParameters.builder()
                                         .turns(Arrays.asList(Content.builder()
                                                 .role("user")
-                                                .parts(Arrays.asList(Part.fromText("Please say: Hello, I am the Booking Manager calling from Choragi.")))
+                                                .parts(Arrays.asList(Part.fromText(greetingPrompt)))
                                                 .build()))
                                         .turnComplete(true)
                                         .build();
                                 clientMethod.invoke(geminiSession, nudgeParams);
-                                log.info("Greeting nudge sent successfully.");
+                                log.info("Outbound greeting nudge sent successfully.");
                             } catch (Exception e) {
-                                log.warn("Failed to setup connection.");
+                                log.warn("Failed to setup connection.", e);
                             }
 
-                            // 2. LISTEN FOR RESPONSES
                             try {
                                 geminiSession.getClass().getMethod("receive", java.util.function.Consumer.class)
                                         .invoke(geminiSession, (java.util.function.Consumer<Object>) msg -> {
@@ -91,9 +112,8 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
             case "media":
                 String payload = json.get("media").get("payload").asText();
 
-                // Decode Twilio 8kHz Mu-law directly into 8kHz PCM (No artificial upsampling!)
                 byte[] twilioAudio = Base64.getDecoder().decode(payload);
-                byte[] pcmAudio = transcodeMuLawToPcm8k(twilioAudio);
+                byte[] pcmAudio = transcodeMuLawToPcm16k(twilioAudio);
 
                 Object activeSession = session.getAttributes().get("geminiSession");
                 Method clientContentMethod = (Method) session.getAttributes().get("clientContentMethod");
@@ -107,47 +127,48 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
 
                     double rms = calculateRMS(pcmAudio);
 
-                    // TUNED: Lowered threshold from 400 to 50 so you don't have to shout!
-                    if (rms > 50) {
+
+                    if (rms > 800) {
                         session.getAttributes().put("hasSpoken", true);
                         session.getAttributes().put("silenceCount", 0);
                     } else {
                         silenceCount++;
                         session.getAttributes().put("silenceCount", silenceCount);
+                    }
 
-                        // TUNED: Increased silence timeout to 75 frames (1.5 seconds).
-                        // Gives you time to breathe between words without interrupting you.
-                        if (silenceCount > 75) {
-                            // 8000 bytes = 0.5 seconds of 8kHz audio (ignores quick throat clears)
-                            if (hasSpoken && audioBuffer.size() > 8000) {
-                                byte[] sentenceAudio = audioBuffer.toByteArray();
+                    boolean hasSpokenNow = (Boolean) session.getAttributes().get("hasSpoken");
 
-                                try {
-                                    LiveSendClientContentParameters audioParams = LiveSendClientContentParameters.builder()
-                                            .turns(Arrays.asList(Content.builder()
-                                                    .role("user")
-                                                    .parts(Arrays.asList(Part.builder()
-                                                            .inlineData(Blob.builder()
-                                                                    // Explicitly tell Gemini this is 8000Hz audio
-                                                                    .mimeType("audio/pcm;rate=8000")
-                                                                    .data(sentenceAudio)
-                                                                    .build())
-                                                            .build()))
-                                                    .build()))
-                                            .turnComplete(true)
-                                            .build();
+                    boolean isSilenceReached = silenceCount > 60;
+                    boolean isBufferFull = audioBuffer.size() > 192000;
 
-                                    clientContentMethod.invoke(activeSession, audioParams);
-                                    log.info("VAD: User finished speaking. Audio sent to Gemini.");
-                                } catch (Exception e) {
-                                    log.debug("Failed to send buffered audio.");
-                                }
+                    if (isSilenceReached || isBufferFull) {
+                        if (hasSpokenNow && audioBuffer.size() > 16000) {
+                            byte[] sentenceAudio = audioBuffer.toByteArray();
+
+                            try {
+                                LiveSendClientContentParameters audioParams = LiveSendClientContentParameters.builder()
+                                        .turns(Arrays.asList(Content.builder()
+                                                .role("user")
+                                                .parts(Arrays.asList(Part.builder()
+                                                        .inlineData(Blob.builder()
+                                                                .mimeType("audio/pcm;rate=16000")
+                                                                .data(sentenceAudio)
+                                                                .build())
+                                                        .build()))
+                                                .build()))
+                                        .turnComplete(true)
+                                        .build();
+
+                                clientContentMethod.invoke(activeSession, audioParams);
+                                log.info("VAD: Chunk sent (Size: {} bytes). Trigger: {}", sentenceAudio.length, isBufferFull ? "Max Time" : "Silence");
+                            } catch (Exception e) {
+                                log.debug("Failed to send buffered audio.");
                             }
-                            // Reset buffers for the next sentence
-                            audioBuffer.reset();
-                            session.getAttributes().put("silenceCount", 0);
-                            session.getAttributes().put("hasSpoken", false);
                         }
+
+                        audioBuffer.reset();
+                        session.getAttributes().put("silenceCount", 0);
+                        session.getAttributes().put("hasSpoken", false);
                     }
                 }
                 break;
@@ -166,7 +187,6 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                         for (Part part : modelTurn.parts().get()) {
                             if (part.inlineData().isPresent() && part.inlineData().get().data().isPresent()) {
 
-                                // Gemini sends 24kHz PCM. Transcode to 8kHz Mu-Law for Twilio's speaker.
                                 byte[] geminiPcm = part.inlineData().get().data().get();
                                 byte[] twilioMuLaw = transcodePcmToMuLaw(geminiPcm);
                                 String streamSid = (String) session.getAttributes().get("streamSid");
@@ -190,7 +210,6 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
         } catch (Exception e) {}
     }
 
-    // --- REAL-TIME VOLUME DETECTOR ---
     private static double calculateRMS(byte[] pcm) {
         long sum = 0;
         int count = 0;
@@ -203,11 +222,8 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
         return count == 0 ? 0 : Math.sqrt((double) sum / count);
     }
 
-    // --- REAL-TIME AUDIO TRANSCODERS ---
-
-    // NEW: Straight 8kHz Mu-law to 8kHz PCM conversion for maximum clarity
-    private static byte[] transcodeMuLawToPcm8k(byte[] mulaw8k) {
-        byte[] pcm8k = new byte[mulaw8k.length * 2];
+    private static byte[] transcodeMuLawToPcm16k(byte[] mulaw8k) {
+        byte[] pcm16k = new byte[mulaw8k.length * 4];
         for (int i = 0, j = 0; i < mulaw8k.length; i++) {
             byte ulaw = (byte) ~mulaw8k[i];
             int sign = (ulaw & 0x80);
@@ -218,10 +234,12 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
             sample -= 132;
             if (sign != 0) sample = -sample;
 
-            pcm8k[j++] = (byte) (sample & 0xFF);
-            pcm8k[j++] = (byte) ((sample >> 8) & 0xFF);
+            pcm16k[j++] = (byte) (sample & 0xFF);
+            pcm16k[j++] = (byte) ((sample >> 8) & 0xFF);
+            pcm16k[j++] = (byte) (sample & 0xFF);
+            pcm16k[j++] = (byte) ((sample >> 8) & 0xFF);
         }
-        return pcm8k;
+        return pcm16k;
     }
 
     private static byte[] transcodePcmToMuLaw(byte[] pcm24k) {
