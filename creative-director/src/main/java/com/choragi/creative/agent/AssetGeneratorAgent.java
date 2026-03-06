@@ -14,26 +14,32 @@ public class AssetGeneratorAgent {
     private final CreativeDirectorAgent creativeDirector;
     private final CloudStorageUploader storageUploader;
 
-    public DigitalPressKit createPressKit(String artistName, String theme) {
-        log.info("Asset Generator: Commissioning poster for {}...", artistName);
+    public DigitalPressKit createPressKit(String artistName, String theme, String date, String location) {
+        log.info("Asset Generator: Commissioning assets for {}...", artistName);
+
+        String posterBase64 = creativeDirector.generateTourPoster(artistName, theme, date, location);
+        String publicImageUrl = null;
 
 
-        String posterBase64 = creativeDirector.generateTourPoster(artistName, theme);
-        String publicUrl = null;
-
-        boolean success = !posterBase64.equals("NO_IMAGE_GENERATED") && !posterBase64.equals("IMAGE_ERROR_FALLBACK");
-
-        if (success) {
-            publicUrl = storageUploader.uploadBase64Image(posterBase64, artistName);
+        boolean imageSuccess = !posterBase64.equals("NO_IMAGE_GENERATED") && !posterBase64.equals("IMAGE_ERROR_FALLBACK");
+        if (imageSuccess) {
+            publicImageUrl = storageUploader.uploadBase64Image(posterBase64, artistName);
         }
+
+
+        String publicVideoUrl = creativeDirector.generatePromoVideo(artistName, theme, date, location);
+        boolean videoSuccess = !publicVideoUrl.equals("NO_VIDEO_GENERATED") && !publicVideoUrl.equals("VIDEO_ERROR_FALLBACK");
 
 
         return DigitalPressKit.builder()
                 .artistName(artistName)
                 .theme(theme)
+                .date(date)
+                .location(location)
                 .posterBase64(posterBase64)
-                .posterGcsUrl(publicUrl)
-                .status((success && publicUrl != null) ? "SUCCESS" : "FAILED")
+                .posterGcsUrl(publicImageUrl)
+                .videoGcsUrl(videoSuccess ? publicVideoUrl : null)
+                .status((imageSuccess && videoSuccess) ? "SUCCESS" : "PARTIAL_SUCCESS")
                 .build();
     }
 }

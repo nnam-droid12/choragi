@@ -8,7 +8,10 @@ import lombok.Data;
 public class DigitalPressKit {
     private String artistName;
     private String theme;
+    private String date;
+    private String location;
     private String posterBase64;
     private String posterGcsUrl;
+    private String videoGcsUrl;
     private String status;
 }
