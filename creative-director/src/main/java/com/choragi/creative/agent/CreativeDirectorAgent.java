@@ -78,31 +78,37 @@ public class CreativeDirectorAgent {
 
 
 
+    // 2. VEO VIDEO PROMO GENERATION
     public String generatePromoVideo(String artistName, String theme, String date, String location) {
         log.info("Choragi Creative: Directing promo video ad for {} at {}...", artistName, location);
+
+
+        String safeTheme = theme.replaceAll("(?i)psychedelic", "retro kaleidoscope");
+
 
         String videoPrompt = String.format(
                 "A dynamic, high-energy promotional video ad for a live music concert. " +
                         "Visual style: %s. " +
                         "The video should feel like a commercial trailer. " +
-                        "Audio MUST include a professional voiceover saying: 'Hurray! %s will be live in town at %s on %s! " +
+                        "Audio MUST include a professional voiceover saying: 'Hurray! The hottest artist of the year will be live in town at %s on %s! " +
                         "Bringing the musical magic and the glow of live music. Come and be energized!' " +
                         "Background audio should include a cinematic hype soundtrack and an excited cheering crowd. " +
-                        "Visuals: cinematic shots of an excited concert crowd, dramatic stage lighting, and a hyped atmosphere.",
-                theme, artistName, location, date);
+                        "Visuals: cinematic shots of an excited concert crowd, dramatic stage lighting, and a generic lead singer performing passionately. DO NOT generate specific real people.",
+                safeTheme, location, date); // Notice artistName is gone from this list!
 
         String gcsOutput = "gs://" + bucketName + "/videos/";
 
         try {
-            log.info("Sending video ad request to Veo 3.1 Fast...");
+            log.info("Sending video ad request to Veo 3.1...");
 
             com.google.genai.types.GenerateVideosOperation operation = client.models.generateVideos(
-                    "veo-3.1-fast-generate-001",
+                    "veo-3.1-generate-preview",
                     com.google.genai.types.GenerateVideosSource.builder()
                             .prompt(videoPrompt)
                             .build(),
                     com.google.genai.types.GenerateVideosConfig.builder()
                             .aspectRatio("16:9")
+                            .personGeneration("allow_adult")
                             .outputGcsUri(gcsOutput)
                             .generateAudio(true)
                             .build()
@@ -114,6 +120,12 @@ public class CreativeDirectorAgent {
                 java.util.concurrent.TimeUnit.SECONDS.sleep(15);
                 operation = client.operations.getVideosOperation(operation, null);
                 log.info("Still generating video ad...");
+            }
+
+            if (operation.error().isPresent()) {
+                Object errorObj = operation.error().get();
+                log.error("Veo Render Failed! Google Cloud Reason: {}", errorObj.toString());
+                return "VIDEO_ERROR_FALLBACK";
             }
 
             String generatedVideoUri = operation.response()
