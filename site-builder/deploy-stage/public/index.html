@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alex Warren - Live in Austin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        /* A little extra for the cinematic text shadow */
+        .text-shadow-glow {
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.3), 0 0 12px rgba(0, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-black font-sans">
+
+    <div id="root"></div>
+
+    <script type="text/babel">
+        function App() {
+            const posterUrl = "https://storage.googleapis.com/choragi-assets-bucket/posters/alex_warren-61891605-4809-4338-8e2c-bd575f416590.png";
+            const videoUrl = "https://storage.googleapis.com/choragi-assets-bucket/videos/12826022043729527094/sample_0.mp4";
+
+            const handleFormSubmit = (e) => {
+                e.preventDefault();
+                alert('Thank you for registering! (This is a demo)');
+            };
+
+            return (
+                <div className="relative min-h-screen overflow-hidden">
+                    {/* Background Video & Overlay */}
+                    <div className="absolute top-0 left-0 w-full h-full z-[-1]">
+                        <video
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="w-full h-full object-cover"
+                            src={videoUrl}
+                        ></video>
+                        <div className="absolute top-0 left-0 w-full h-full bg-black/75"></div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main className="relative z-10 flex flex-col items-center justify-center min-h-screen p-4 sm:p-8 text-white">
+                        <div className="w-full max-w-6xl mx-auto text-center">
+                            
+                            <h1 className="text-5xl sm:text-6xl md:text-8xl font-black uppercase tracking-widest text-shadow-glow">
+                                Alex Warren
+                            </h1>
+                            <p className="mt-2 text-lg sm:text-xl md:text-2xl text-cyan-300 tracking-wider font-light">
+                                Live In Concert
+                            </p>
+
+                            <div className="mt-10 md:mt-16 flex flex-col md:flex-row items-center md:items-start justify-center gap-8 md:gap-12">
+                                
+                                {/* Poster */}
+                                <div className="flex-shrink-0">
+                                    <img 
+                                        src={posterUrl} 
+                                        alt="Alex Warren concert poster" 
+                                        className="w-full max-w-xs sm:max-w-sm rounded-lg shadow-2xl shadow-cyan-500/20 border-2 border-cyan-900/50 transform hover:scale-105 transition-transform duration-300" 
+                                    />
+                                </div>
+
+                                {/* Details & Form Section */}
+                                <div className="w-full max-w-md text-left">
+                                    
+                                    {/* Event Details */}
+                                    <div className="bg-gray-900/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700/80">
+                                        <div className="flex items-start mb-4 space-x-4">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-400 mt-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                            <div>
+                                                <h3 className="font-semibold text-cyan-400">Date & Time</h3>
+                                                <p className="text-gray-200">Wednesday, April 15th, 2026</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-start space-x-4">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-400 mt-1 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                            <div>
+                                                <h3 className="font-semibold text-cyan-400">Location</h3>
+                                                <p className="text-gray-200">Historic Scoot Inn - Austin, TX</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Registration Form */}
+                                    <div className="mt-6 bg-gray-900/50 backdrop-blur-sm p-6 rounded-lg border border-gray-700/80">
+                                        <h3 className="text-2xl font-bold text-center mb-5 text-cyan-300">Register for Tickets</h3>
+                                        <form onSubmit={handleFormSubmit} className="space-y-4">
+                                            <div>
+                                                <label htmlFor="name" className="sr-only">Name</label>
+                                                <input type="text" id="name" name="name" placeholder="Full Name" required className="w-full bg-gray-800/70 border border-gray-600 rounded-md p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all" />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="email" className="sr-only">Email</label>
+                                                <input type="email" id="email" name="email" placeholder="Email Address" required className="w-full bg-gray-800/70 border border-gray-600 rounded-md p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all" />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="phone" className="sr-only">Phone</label>
+                                                <input type="tel" id="phone" name="phone" placeholder="Phone Number" required className="w-full bg-gray-800/70 border border-gray-600 rounded-md p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 transition-all" />
+                                            </div>
+                                            <button type="submit" className="w-full bg-cyan-600 text-white font-bold py-3 px-4 rounded-md hover:bg-cyan-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-900 focus:ring-cyan-500 transition-colors duration-300 text-lg uppercase tracking-wider">
+                                                Submit
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+
+</body>
+</html>

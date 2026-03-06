@@ -1,6 +1,6 @@
 package com.choragi.sitebuilder.agent;
 
-import com.google.genai.Client;
+import com.choragi.sitebuilder.tools.FirebaseDeployerTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,19 +10,21 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class SiteBuilderAgent {
 
-    private final Client client;
+    private final ReactCodeGeneratorAgent codeGenerator;
+    private final FirebaseDeployerTool deployerTool;
 
-    public boolean updateTourLandingPage(String artistName, String posterUrl, String campaignText) {
-        log.info("Choragi Site Builder: Finalizing tour page for {}", artistName);
+    public String buildAndDeploySite(String artistName, String date, String location, String posterUrl, String videoUrl) {
+        log.info("Choragi Site Builder: Initializing construction for {}", artistName);
+
+        String reactHtmlCode = codeGenerator.generateReactLandingPage(artistName, date, location, posterUrl, videoUrl);
 
 
-        try {
-            log.info("Asset Deployment: {} successfully linked to tour index.", posterUrl);
-            log.info("Social Copy: Integration successful.");
-            return true;
-        } catch (Exception e) {
-            log.error("Site Builder failed to deploy assets", e);
-            return false;
+        String hostedUrl = deployerTool.deployToFirebase(reactHtmlCode, artistName);
+
+        if (hostedUrl.contains("FAILED") || hostedUrl.contains("ERROR")) {
+            log.warn("Deployment failed, but site was saved locally to /deploy-stage/public/index.html");
         }
+
+        return hostedUrl;
     }
 }
