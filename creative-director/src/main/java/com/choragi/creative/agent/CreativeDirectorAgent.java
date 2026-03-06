@@ -1,13 +1,12 @@
 package com.choragi.creative.agent;
 
 import com.google.genai.Client;
-import com.google.genai.types.GenerateImagesConfig;
-import com.google.genai.types.GenerateImagesResponse;
-import com.google.genai.types.GeneratedImage;
+import com.google.genai.types.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
@@ -22,51 +21,51 @@ public class CreativeDirectorAgent {
     public String generateTourPoster(String artistName, String theme) {
         log.info("Choragi Creative: Designing poster for {} - Theme: {}", artistName, theme);
 
-        String prompt = String.format(
-                "High-resolution concert tour poster for '%s'. Theme: %s. Cinematic style.",
+        String visualPrompt = String.format(
+                "High-resolution concert tour poster for '%s'. Theme: %s. Cinematic style, dynamic lighting. Vertical layout.",
                 artistName, theme);
 
-        GenerateImagesConfig config = GenerateImagesConfig.builder()
-                .numberOfImages(1)
-                .aspectRatio("2:3")
+
+        GenerateContentConfig config = GenerateContentConfig.builder()
+                .responseModalities(Arrays.asList("IMAGE"))
                 .build();
 
-        try {
-            GenerateImagesResponse response = client.models.generateImages("imagen-3.0-generate-001", prompt, config);
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                log.info("Generating with Nano Banana (gemini-2.5-flash-image) - Attempt {}...", attempt);
 
-            List<GeneratedImage> images = response.generatedImages().orElse(Collections.emptyList());
+                GenerateContentResponse response = client.models.generateContent(
+                        "gemini-2.5-flash-image",
+                        Content.builder().role("user").parts(Collections.singletonList(
+                                Part.builder().text(visualPrompt).build()
+                        )).build(),
+                        config
+                );
 
-            if (!images.isEmpty()) {
-                GeneratedImage firstImage = images.get(0);
+                return response.candidates().orElse(Collections.emptyList()).stream()
+                        .map(c -> c.content().orElse(null))
+                        .filter(content -> content != null)
+                        .map(content -> content.parts().orElse(Collections.emptyList()))
+                        .flatMap(List::stream)
+                        .filter(part -> part.inlineData().isPresent())
+                        .map(part -> part.inlineData().get().data().orElse(null))
+                        .filter(bytes -> bytes != null && bytes.length > 0)
+                        .findFirst()
+                        .map(imageBytes -> "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes))
+                        .orElse("NO_IMAGE_GENERATED");
 
-
-                try {
-                    Object imgObj = firstImage.image();
-
-                    if (imgObj != null) {
-                        Object bytesData = imgObj.getClass().getMethod("imageBytes").invoke(imgObj);
-
-
-                        if (bytesData instanceof java.util.Optional) {
-                            bytesData = ((java.util.Optional<?>) bytesData).orElse(null);
-                        }
-
-
-                        if (bytesData instanceof byte[]) {
-                            return "data:image/png;base64," + Base64.getEncoder().encodeToString((byte[]) bytesData);
-                        } else if (bytesData instanceof String) {
-                            return "data:image/png;base64," + bytesData;
-                        }
-                    }
-                } catch (Exception ex) {
-                    log.warn("Reflection extraction failed, image format may have changed.", ex);
+            } catch (Exception e) {
+                if (e.getMessage().contains("429") || e.getMessage().contains("Resource exhausted")) {
+                    long wait = 2000L * attempt;
+                    log.warn("Quota (429) hit. Cooling down for {}ms before retrying...", wait);
+                    try { Thread.sleep(wait); } catch (InterruptedException ignored) {}
+                } else {
+                    log.error("Creative Director: Image generation failed critically", e);
+                    break;
                 }
             }
-            return "NO_IMAGE_GENERATED";
-
-        } catch (Exception e) {
-            log.error("Creative Director: Image generation failed", e);
-            return "IMAGE_ERROR_FALLBACK";
         }
+        return "IMAGE_ERROR_FALLBACK";
     }
 }
