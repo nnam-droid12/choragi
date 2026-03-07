@@ -19,7 +19,7 @@ public class PromoterController {
         String artistName = request.getOrDefault("artistName", "Alex Warren");
         String websiteUrl = request.getOrDefault("websiteUrl", "https://nixora-web.web.app");
 
-        promoterAgent.launchFacebookAd(artistName, websiteUrl);
+        promoterAgent.launchAdsCampaign(artistName, websiteUrl);
 
         return ResponseEntity.ok(Map.of(
                 "status", "SUCCESS",
