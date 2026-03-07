@@ -33,4 +33,18 @@ public class BrowserClickerTool {
         page.keyboard().type(text);
         page.waitForTimeout(1000);
     }
+
+    public void pressKey(String key) {
+        log.info("AI pressing key: {}", key);
+        page.keyboard().press(key);
+        page.waitForTimeout(2000);
+    }
+
+    public void clickAndType(int x, int y, String text) {
+        log.info("AI clicking at X={}, Y={} and typing: {}", x, y, text);
+        page.mouse().click(x, y);
+        page.waitForTimeout(500);
+        page.keyboard().type(text);
+        page.waitForTimeout(1000);
+    }
 }

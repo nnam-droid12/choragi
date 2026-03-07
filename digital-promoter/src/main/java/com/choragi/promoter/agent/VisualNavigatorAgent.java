@@ -20,49 +20,60 @@ public class VisualNavigatorAgent {
     public void executeVisualTask(String taskDescription) {
         log.info("Visual Agent starting task: {}", taskDescription);
 
-        for (int step = 1; step <= 5; step++) {
+        for (int step = 1; step <= 8; step++) {
             try {
                 byte[] screenshotBytes = browser.takeScreenshot();
 
                 String prompt = String.format(
                         "Goal: %s. \nLook at this screenshot. What is the very next action I should take? " +
-                                "Respond ONLY in this exact format: \n" +
-                                "CLICK: [X, Y] \n" +
-                                "TYPE: [text to type] \n" +
+                                "Do not explain your reasoning. Output ONLY ONE of these commands:\n" +
+                                "CLICK: [X, Y]\n" +
+                                "CLICK_AND_TYPE: X, Y, text to type\n" +
+                                "PRESS: [KeyName] (e.g., Enter, PageUp)\n" +
                                 "DONE: task complete", taskDescription);
 
-                GenerateContentResponse response = client.models.generateContent(
+                com.google.genai.types.GenerateContentResponse response = client.models.generateContent(
                         "gemini-2.5-computer-use-preview-10-2025",
-                        Content.builder().role("user").parts(Arrays.asList(
-                                Part.builder().text(prompt).build(),
-                                Part.builder().inlineData(Blob.builder().data(screenshotBytes).mimeType("image/png").build()).build()
+                        com.google.genai.types.Content.builder().role("user").parts(java.util.Arrays.asList(
+                                com.google.genai.types.Part.builder().text(prompt).build(),
+                                com.google.genai.types.Part.builder().inlineData(
+                                        com.google.genai.types.Blob.builder().data(screenshotBytes).mimeType("image/png").build()
+                                ).build()
                         )).build(),
-                        GenerateContentConfig.builder().temperature(0.0f).build()
+                        com.google.genai.types.GenerateContentConfig.builder().temperature(0.0f).build()
                 );
 
                 String aiAction = response.text().trim();
                 log.info("Step {}: AI Decision -> {}", step, aiAction);
 
-                // 3. Act (Parse output and execute)
-                if (aiAction.startsWith("DONE")) {
+                if (aiAction.contains("DONE")) {
                     log.info("Task completed successfully by Visual Agent.");
                     break;
-                } else if (aiAction.startsWith("CLICK:")) {
-                    // Bulletproof coordinate parsing: strip brackets, split by comma
-                    String coords = aiAction.substring(aiAction.indexOf(":") + 1)
-                            .replace("[", "")
-                            .replace("]", "")
-                            .trim();
-                    String[] parts = coords.split(",");
-                    browser.click(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
+                } else if (aiAction.contains("CLICK_AND_TYPE:")) {
+                    String rawArgs = aiAction.substring(aiAction.indexOf("CLICK_AND_TYPE:") + 15).split("\n")[0];
+                    String cleanArgs = rawArgs.replace("[", "").replace("]", "").trim();
+                    String[] parts = cleanArgs.split(",", 3); // Split into exactly 3 pieces (X, Y, Text)
 
-                } else if (aiAction.startsWith("TYPE:")) {
-                    // Bulletproof text parsing: grab everything after the colon and strip brackets
-                    String text = aiAction.substring(aiAction.indexOf(":") + 1)
-                            .replace("[", "")
-                            .replace("]", "")
-                            .trim();
-                    browser.typeText(text);
+                    int x = Integer.parseInt(parts[0].trim());
+                    int y = Integer.parseInt(parts[1].trim());
+                    String text = parts[2].trim();
+                    browser.clickAndType(x, y, text);
+
+                } else if (aiAction.contains("CLICK:")) {
+                    String rawCoords = aiAction.substring(aiAction.indexOf("CLICK:") + 6).split("\n")[0];
+                    String cleanCoords = rawCoords.replaceAll("[^0-9,]", "").trim();
+                    String[] parts = cleanCoords.split(",");
+                    browser.click(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+
+                } else if (aiAction.contains("TYPE:")) {
+                    String rawText = aiAction.substring(aiAction.indexOf("TYPE:") + 5).split("\n")[0];
+                    String cleanText = rawText.replace("[", "").replace("]", "").trim();
+                    browser.typeText(cleanText);
+
+                } else if (aiAction.contains("PRESS:")) {
+                    String rawKey = aiAction.substring(aiAction.indexOf("PRESS:") + 6).split("\n")[0];
+                    String cleanKey = rawKey.replace("[", "").replace("]", "").replace(" ", "").trim();
+                    browser.pressKey(cleanKey);
                 }
 
             } catch (Exception e) {
