@@ -43,16 +43,25 @@ public class VisualNavigatorAgent {
                 String aiAction = response.text().trim();
                 log.info("Step {}: AI Decision -> {}", step, aiAction);
 
+                // 3. Act (Parse output and execute)
                 if (aiAction.startsWith("DONE")) {
                     log.info("Task completed successfully by Visual Agent.");
                     break;
                 } else if (aiAction.startsWith("CLICK:")) {
-
-                    String coords = aiAction.substring(aiAction.indexOf("[") + 1, aiAction.indexOf("]"));
+                    // Bulletproof coordinate parsing: strip brackets, split by comma
+                    String coords = aiAction.substring(aiAction.indexOf(":") + 1)
+                            .replace("[", "")
+                            .replace("]", "")
+                            .trim();
                     String[] parts = coords.split(",");
                     browser.click(Integer.parseInt(parts[0].trim()), Integer.parseInt(parts[1].trim()));
+
                 } else if (aiAction.startsWith("TYPE:")) {
-                    String text = aiAction.substring(aiAction.indexOf("[") + 1, aiAction.lastIndexOf("]"));
+                    // Bulletproof text parsing: grab everything after the colon and strip brackets
+                    String text = aiAction.substring(aiAction.indexOf(":") + 1)
+                            .replace("[", "")
+                            .replace("]", "")
+                            .trim();
                     browser.typeText(text);
                 }
 
