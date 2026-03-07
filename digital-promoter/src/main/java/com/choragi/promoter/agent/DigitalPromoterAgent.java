@@ -14,15 +14,13 @@ public class DigitalPromoterAgent {
     private final BrowserClickerTool browser;
 
     public void launchFacebookAd(String artistName, String websiteUrl) {
-        log.info("Choragi Promoter: Initiating ad campaign for {}", artistName);
+        log.info("Choragi Promoter: Initiating test UI run for {}", artistName);
 
-        browser.navigateTo("https://www.facebook.com/adsmanager/creation");
-
+        browser.navigateTo("https://en.wikipedia.org/wiki/Main_Page");
 
         String goal = String.format(
-                "Create a new traffic ad campaign. Name the campaign '%s Tour'. " +
-                        "Set the destination URL to '%s'. Click the publish button.",
-                artistName, websiteUrl
+                "Find the search bar on this page. Type '%s' into the search bar, and hit the search button or press Enter to navigate to their article.",
+                artistName
         );
 
         navigatorAgent.executeVisualTask(goal);
