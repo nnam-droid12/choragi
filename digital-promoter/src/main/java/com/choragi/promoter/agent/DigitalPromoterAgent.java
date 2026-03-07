@@ -1,6 +1,6 @@
 package com.choragi.promoter.agent;
 
-import com.google.genai.Client;
+import com.choragi.promoter.tools.BrowserClickerTool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -10,22 +10,21 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class DigitalPromoterAgent {
 
-    private final Client client;
+    private final VisualNavigatorAgent navigatorAgent;
+    private final BrowserClickerTool browser;
 
-    public String generateSocialCampaign(String artistName, String posterUrl) {
-        log.info("Choragi Promoter: Creating campaign for {}", artistName);
+    public void launchFacebookAd(String artistName, String websiteUrl) {
+        log.info("Choragi Promoter: Initiating ad campaign for {}", artistName);
 
-        String modelId = "gemini-3.1-pro-preview";
-        String prompt = String.format(
-                "Create a 3-post Instagram launch sequence for the artist '%s'. " +
-                        "Reference this tour poster: %s. Use a high-energy tone.", artistName, posterUrl);
+        browser.navigateTo("https://www.facebook.com/adsmanager/creation");
 
-        try {
-            var response = client.models.generateContent(modelId, prompt, null);
-            return response.text();
-        } catch (Exception e) {
-            log.error("Promoter failed to generate campaign", e);
-            return "Campaign generation failed.";
-        }
+
+        String goal = String.format(
+                "Create a new traffic ad campaign. Name the campaign '%s Tour'. " +
+                        "Set the destination URL to '%s'. Click the publish button.",
+                artistName, websiteUrl
+        );
+
+        navigatorAgent.executeVisualTask(goal);
     }
 }
