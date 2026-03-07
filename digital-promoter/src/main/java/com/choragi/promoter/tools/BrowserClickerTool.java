@@ -57,8 +57,9 @@ public class BrowserClickerTool {
             container.style.position = 'fixed';
             container.style.bottom = '20px';
             container.style.right = '20px';
-            container.style.width = '320px';
-            container.style.height = '240px';
+            // THE FIX: Increased size from 320x240 to 480x360
+            container.style.width = '480px';
+            container.style.height = '360px';
             container.style.zIndex = '9999';
             container.style.borderRadius = '12px';
             container.style.overflow = 'hidden';
@@ -84,8 +85,9 @@ public class BrowserClickerTool {
             canvas.style.position = 'absolute';
             canvas.style.top = '0';
             canvas.style.left = '0';
-            canvas.width = 320;
-            canvas.height = 240;
+            // THE FIX: Match the new container size
+            canvas.width = 480;
+            canvas.height = 360;
             const canvasCtx = canvas.getContext('2d');
             container.appendChild(canvas);
 
@@ -102,7 +104,6 @@ public class BrowserClickerTool {
                 try {
                     await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
                     await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
-                    // THE NEW ADDITION: The Drawing utilities!
                     await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js'); 
 
                     let previousY = null;
@@ -117,22 +118,17 @@ public class BrowserClickerTool {
 
                     // 5. The Brain & The Painter
                     hands.onResults((results) => {
-                        // Clear the canvas every frame so old lines don't pile up
                         canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 
                         if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                             container.style.borderColor = '#ff0000'; // Box turns Red
                             
-                            // DRAW THE SKELETON
                             for (const landmarks of results.multiHandLandmarks) {
-                                // Draw the bright green connection lines
                                 drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
-                                // Draw the red dots on the knuckles/joints
                                 drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
                             }
 
-                            // SCROLLING LOGIC
-                            const currentY = results.multiHandLandmarks[0][8].y; // Index finger tip
+                            const currentY = results.multiHandLandmarks[0][8].y; 
                             
                             if (previousY !== null) {
                                 const deltaY = currentY - previousY;
@@ -149,7 +145,8 @@ public class BrowserClickerTool {
 
                     const camera = new Camera(video, {
                         onFrame: async () => { await hands.send({image: video}); },
-                        width: 320, height: 240
+                        // THE FIX: Ask the webcam for a higher resolution feed
+                        width: 480, height: 360
                     });
                     camera.start();
                 } catch (error) {
