@@ -49,64 +49,112 @@ public class BrowserClickerTool {
     }
 
     public void enableGestureScrolling() {
-        log.info("Injecting MediaPipe Gesture Recognition for Jedi scrolling...");
+        log.info("Injecting MediaPipe Gesture Recognition with Visual Tracking Skeleton...");
 
         String gestureScript = """
-            // 1. Create a hidden video element to capture the webcam stream
-            const video = document.createElement('video');
-            video.style.display = 'none';
-            document.body.appendChild(video);
+            // 1. Create a container to hold BOTH the video and the drawing canvas
+            const container = document.createElement('div');
+            container.style.position = 'fixed';
+            container.style.bottom = '20px';
+            container.style.right = '20px';
+            container.style.width = '320px';
+            container.style.height = '240px';
+            container.style.zIndex = '9999';
+            container.style.borderRadius = '12px';
+            container.style.overflow = 'hidden';
+            container.style.boxShadow = '0 10px 20px rgba(0,0,0,0.5)';
+            container.style.border = '4px solid #00ff00';
+            container.style.transform = 'scaleX(-1)'; // Mirror the whole box
+            document.body.appendChild(container);
 
-            // 2. Helper function to load MediaPipe from CDNs
-            const loadScript = (src) => new Promise((resolve) => {
+            // 2. Create the Video Element (Base layer)
+            const video = document.createElement('video');
+            video.autoplay = true;
+            video.playsInline = true;
+            video.style.position = 'absolute';
+            video.style.top = '0';
+            video.style.left = '0';
+            video.style.width = '100%';
+            video.style.height = '100%';
+            video.style.objectFit = 'cover';
+            container.appendChild(video);
+
+            // 3. Create the Canvas Element (Top layer for the green skeleton)
+            const canvas = document.createElement('canvas');
+            canvas.style.position = 'absolute';
+            canvas.style.top = '0';
+            canvas.style.left = '0';
+            canvas.width = 320;
+            canvas.height = 240;
+            const canvasCtx = canvas.getContext('2d');
+            container.appendChild(canvas);
+
+            // 4. Helper function to load MediaPipe
+            const loadScript = (src) => new Promise((resolve, reject) => {
                 const s = document.createElement('script');
                 s.src = src;
                 s.onload = resolve;
+                s.onerror = reject;
                 document.head.appendChild(s);
             });
 
             (async function initGestures() {
-                // Load the vision models
-                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
-                await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
+                try {
+                    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js');
+                    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js');
+                    // THE NEW ADDITION: The Drawing utilities!
+                    await loadScript('https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js'); 
 
-                let previousY = null;
+                    let previousY = null;
 
-                const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-                hands.setOptions({
-                    maxNumHands: 1,
-                    minDetectionConfidence: 0.7,
-                    minTrackingConfidence: 0.7
-                });
+                    const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                    hands.setOptions({
+                        maxNumHands: 1,
+                        modelComplexity: 1,
+                        minDetectionConfidence: 0.65,
+                        minTrackingConfidence: 0.65
+                    });
 
-                // 3. The Brain: Translate hand movement to scrolling
-                hands.onResults((results) => {
-                    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-                        // Track the Y-coordinate of the tip of the Index Finger (Landmark 8)
-                        const currentY = results.multiHandLandmarks[0][8].y;
-                        
-                        if (previousY !== null) {
-                            const deltaY = currentY - previousY;
+                    // 5. The Brain & The Painter
+                    hands.onResults((results) => {
+                        // Clear the canvas every frame so old lines don't pile up
+                        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+                        if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                            container.style.borderColor = '#ff0000'; // Box turns Red
                             
-                            // Threshold to prevent tiny jitters from shaking the screen
-                            if (Math.abs(deltaY) > 0.015) {
-                                // Multiply the delta to determine scroll speed. 
-                                // Hand moves up -> scroll up. Hand moves down -> scroll down.
-                                window.scrollBy({ top: deltaY * 4000, behavior: 'auto' }); 
+                            // DRAW THE SKELETON
+                            for (const landmarks of results.multiHandLandmarks) {
+                                // Draw the bright green connection lines
+                                drawConnectors(canvasCtx, landmarks, HAND_CONNECTIONS, {color: '#00FF00', lineWidth: 4});
+                                // Draw the red dots on the knuckles/joints
+                                drawLandmarks(canvasCtx, landmarks, {color: '#FF0000', lineWidth: 2, radius: 3});
                             }
-                        }
-                        previousY = currentY;
-                    } else {
-                        previousY = null; // Reset if hand leaves the camera frame
-                    }
-                });
 
-                // 4. Start the camera feed
-                const camera = new Camera(video, {
-                    onFrame: async () => { await hands.send({image: video}); },
-                    width: 640, height: 480
-                });
-                camera.start();
+                            // SCROLLING LOGIC
+                            const currentY = results.multiHandLandmarks[0][8].y; // Index finger tip
+                            
+                            if (previousY !== null) {
+                                const deltaY = currentY - previousY;
+                                if (Math.abs(deltaY) > 0.01) {
+                                    window.scrollBy({ top: deltaY * 3500, behavior: 'instant' }); 
+                                }
+                            }
+                            previousY = currentY;
+                        } else {
+                            container.style.borderColor = '#00ff00'; // Box turns Green
+                            previousY = null;
+                        }
+                    });
+
+                    const camera = new Camera(video, {
+                        onFrame: async () => { await hands.send({image: video}); },
+                        width: 320, height: 240
+                    });
+                    camera.start();
+                } catch (error) {
+                    console.error("MediaPipe failed to load", error);
+                }
             })();
         """;
 
