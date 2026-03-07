@@ -19,8 +19,12 @@ public class DigitalPromoterAgent {
         browser.navigateTo("https://en.wikipedia.org/wiki/Main_Page");
 
         String goal = String.format(
-                "Find the search bar on this page. Type '%s' into the search bar, and hit the search button or press Enter to navigate to their article.",
-                artistName
+                "Navigate to the Wikipedia article for '%s'. " +
+                        "Follow this logic strictly based on what you see in the screenshot: " +
+                        "1. If the search bar is empty, use CLICK_AND_TYPE to enter '%s'. " +
+                        "2. If '%s' is ALREADY visible inside the search bar, DO NOT type it again. Instead, use PRESS: Enter. " +
+                        "3. If you are already looking at the full Wikipedia article page for '%s', output DONE.",
+                artistName, artistName, artistName, artistName
         );
 
         navigatorAgent.executeVisualTask(goal);
