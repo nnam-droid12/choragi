@@ -20,7 +20,8 @@ public class VisualNavigatorAgent {
     public void executeVisualTask(String taskDescription) {
         log.info("Visual Agent starting task: {}", taskDescription);
 
-        for (int step = 1; step <= 8; step++) {
+
+        for (int step = 1; step <= 25; step++) {
             try {
                 byte[] screenshotBytes = browser.takeScreenshot();
 
