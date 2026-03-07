@@ -48,6 +48,8 @@ public class VisualNavigatorAgent {
 
                 if (aiAction.contains("DONE")) {
                     log.info("Task completed successfully by Visual Agent.");
+                    log.info("Activating Hand Gesture mode...");
+                    browser.enableGestureScrolling();
                     break;
                 } else if (aiAction.contains("CLICK_AND_TYPE:")) {
                     String rawArgs = aiAction.substring(aiAction.indexOf("CLICK_AND_TYPE:") + 15).split("\n")[0];
