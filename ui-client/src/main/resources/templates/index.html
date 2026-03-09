@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choragi AI Command Center</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+</head>
+<body>
+<div class="dashboard-container">
+    <header class="dashboard-header">
+        <div class="logo">
+            <i class="fa-solid fa-layer-group"></i> CHORAGI <span>AI ENGINE</span>
+        </div>
+        <div class="system-status">
+            <span class="pulse-dot"></span> System Online
+        </div>
+    </header>
+
+    <div class="top-panel">
+        <div class="voice-module panel">
+            <h2><i class="fa-solid fa-microphone-lines"></i> Gemini Multimodal Live</h2>
+            <p>Speak to Choragi to initiate the concert planning protocol.</p>
+
+            <div class="voice-visualizer" id="visualizer">
+                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            </div>
+
+            <div class="controls">
+                <button id="start-voice-btn" class="btn primary"><i class="fa-solid fa-microphone"></i> Start Session</button>
+                <button id="stop-voice-btn" class="btn secondary" disabled><i class="fa-solid fa-stop"></i> Stop</button>
+            </div>
+            <div id="voice-status" class="status-text">Disconnected</div>
+        </div>
+
+        <div class="terminal-module panel">
+            <div class="terminal-header">
+                <span><i class="fa-solid fa-terminal"></i> Global Execution Logs</span>
+            </div>
+            <div class="terminal-body" id="terminal-output">
+                <p class="log-line system">> Choragi OS v2.4 initialized. Waiting for voice input...</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="agents-grid">
+        <div class="agent-card" id="card-venue">
+            <div class="agent-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+            <h3>Venue Finder</h3>
+            <p class="agent-state">Awaiting Orders</p>
+            <div class="progress-bar"><div class="fill"></div></div>
+        </div>
+
+        <div class="agent-card" id="card-negotiator">
+            <div class="agent-icon"><i class="fa-solid fa-handshake-angle"></i></div>
+            <h3>Negotiator</h3>
+            <p class="agent-state">Awaiting Orders</p>
+            <div class="progress-bar"><div class="fill"></div></div>
+        </div>
+
+        <div class="agent-card" id="card-creative">
+            <div class="agent-icon"><i class="fa-solid fa-palette"></i></div>
+            <h3>Creative Director</h3>
+            <p class="agent-state">Awaiting Orders</p>
+            <div class="progress-bar"><div class="fill"></div></div>
+        </div>
+
+        <div class="agent-card" id="card-website">
+            <div class="agent-icon"><i class="fa-solid fa-code"></i></div>
+            <h3>Website Builder</h3>
+            <p class="agent-state">Awaiting Orders</p>
+            <div class="progress-bar"><div class="fill"></div></div>
+        </div>
+
+        <div class="agent-card" id="card-promoter">
+            <div class="agent-icon"><i class="fa-solid fa-bullhorn"></i></div>
+            <h3>Digital Promoter</h3>
+            <p class="agent-state">Awaiting Orders</p>
+            <div class="progress-bar"><div class="fill"></div></div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
