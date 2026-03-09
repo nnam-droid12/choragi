@@ -10,12 +10,19 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class BrowserClickerTool {
 
-    private final Page page;
+    public final Page page;
 
     public void navigateTo(String url) {
         log.info("Navigating to: {}", url);
-        page.navigate(url);
-        page.waitForLoadState();
+        try {
+
+            page.navigate(url, new com.microsoft.playwright.Page.NavigateOptions()
+                    .setWaitUntil(com.microsoft.playwright.options.WaitUntilState.DOMCONTENTLOADED)
+                    .setTimeout(60000));
+            log.info("Navigation command executed successfully.");
+        } catch (Exception e) {
+            log.error("Failed to navigate to " + url, e);
+        }
     }
 
     public byte[] takeScreenshot() {
@@ -43,9 +50,268 @@ public class BrowserClickerTool {
     public void clickAndType(int x, int y, String text) {
         log.info("AI clicking at X={}, Y={} and typing: {}", x, y, text);
         page.mouse().click(x, y);
-        page.waitForTimeout(500);
+        page.waitForTimeout(400);
+        page.mouse().click(x, y);
+        page.waitForTimeout(600);
         page.keyboard().type(text);
         page.waitForTimeout(1000);
+    }
+
+    public void smartType(int x, int y, String text) {
+        log.info("AI using targeted SMART_TYPE at X={}, Y={} to clear old text and inject: {}", x, y, text);
+
+        page.mouse().click(x, y);
+        page.waitForTimeout(500);
+
+
+        page.mouse().click(x, y, new com.microsoft.playwright.Mouse.ClickOptions().setClickCount(3));
+        page.waitForTimeout(300);
+
+
+        page.keyboard().press("Backspace");
+        page.waitForTimeout(300);
+
+        page.keyboard().type(text);
+        page.waitForTimeout(1000);
+    }
+
+    public void fillFormBySelector(String fieldName, String text) {
+        log.info("AI using JS Index Locator to safely fill '{}' with: {}", fieldName, text);
+        try {
+            boolean focused = (boolean) page.evaluate("(args) => { " +
+                    "  const inputs = Array.from(document.querySelectorAll('input:not([type=\"hidden\"]):not([type=\"radio\"]):not([type=\"checkbox\"]), textarea'))" +
+                    "    .filter(el => el.offsetParent !== null); " +
+                    "  let target = null; " +
+
+                    "  if (args.fieldName === 'businessName' && inputs.length > 0) target = inputs[0]; " +
+
+                    "  if (args.fieldName === 'websiteUrl') { " +
+                    "    target = Array.from(document.querySelectorAll('input')).find(el => " +
+                    "      (el.placeholder && el.placeholder.toLowerCase().includes('url')) || " +
+                    "      (el.ariaLabel && el.ariaLabel.toLowerCase().includes('url')) || " +
+                    "      el.type === 'url'" +
+                    "    ); " +
+
+                    "    if (!target && inputs.length > 1) { target = inputs[1]; } " +
+                    "    else if (!target && inputs.length === 1) { target = inputs[0]; } " +
+                    "  } " +
+
+
+                    "  if (args.fieldName === 'businessDescription') { " +
+                    "    target = document.querySelector('textarea'); " +
+                    "    if (!target && inputs.length > 0) target = inputs[0]; " +
+                    "  } " +
+
+                    "  if (args.fieldName === 'goalUrl') { " +
+                    "    target = Array.from(document.querySelectorAll('input')).find(el => el.placeholder.includes('subpage') || el.ariaLabel?.toLowerCase().includes('url')); " +
+                    "    if (!target && inputs.length > 0) target = inputs[inputs.length - 1]; " +
+                    "  } " +
+
+                    "  if (args.fieldName === 'targetCpa') { " +
+                    "    target = Array.from(document.querySelectorAll('input')).find(el => el.type === 'text' || el.type === 'number'); " +
+                    "    if (!target && inputs.length > 0) target = inputs[inputs.length - 1]; " +
+                    "  } " +
+
+                    "  if (target) { " +
+                    "    target.value = ''; " +
+                    "    target.dispatchEvent(new Event('input', { bubbles: true })); " +
+                    "    target.focus(); " +
+                    "    return true; " +
+                    "  } return false; " +
+                    "}", java.util.Map.of("fieldName", fieldName));
+
+            if (focused) {
+                log.info("Input box focused. Typing '{}' like a human...", text);
+                page.waitForTimeout(500);
+                page.keyboard().type(text, new com.microsoft.playwright.Keyboard.TypeOptions().setDelay(100));
+                page.waitForTimeout(500);
+            } else {
+                log.warn("Could not find input box for {}. Scrolling down...", fieldName);
+                page.keyboard().press("PageDown");
+            }
+        } catch (Exception e) {
+            log.error("JS Locator failed", e);
+        }
+    }
+
+
+    public void addSearchTheme(String text) {
+        log.info("AI using Human Typist Macro for Search Theme: {}", text);
+        try {
+            page.evaluate("() => { " +
+                    "  const input = Array.from(document.querySelectorAll('input')).find(el => " +
+                    "    (el.placeholder && el.placeholder.toLowerCase().includes('search')) || " +
+                    "    (el.ariaLabel && el.ariaLabel.toLowerCase().includes('search'))" +
+                    "  ); " +
+                    "  if (input) { " +
+                    "    input.scrollIntoView({block: 'center'}); " +
+                    "    input.setAttribute('data-ai-theme', 'true'); " +
+                    "  } " +
+                    "}");
+
+            com.microsoft.playwright.Locator box = page.locator("input[data-ai-theme='true']");
+
+            box.clear();
+            page.waitForTimeout(500);
+
+            log.info("Typing slowly to trigger React state...");
+            box.pressSequentially(text, new com.microsoft.playwright.Locator.PressSequentiallyOptions().setDelay(100));
+
+            log.info("Waiting for Google's dropdown...");
+            page.waitForTimeout(2000);
+
+            log.info("Pressing ArrowDown and Enter to select the chip...");
+            box.press("ArrowDown");
+            page.waitForTimeout(500);
+            box.press("Enter");
+            page.waitForTimeout(1000);
+
+            log.info("Pressing Tab to lose focus safely...");
+            box.press("Tab");
+            page.waitForTimeout(1500);
+
+        } catch (Exception e) {
+            log.warn("Could not execute Search Theme macro. Scrolling down...");
+            page.keyboard().press("PageDown");
+        }
+    }
+
+    public void clickNext() {
+        log.info("AI hunting for the TRUE visible Next button in the sticky footer...");
+        try {
+            page.keyboard().press("Escape");
+            page.waitForTimeout(500);
+
+            boolean clicked = (boolean) page.evaluate("() => { " +
+                    "  const elements = Array.from(document.querySelectorAll('button, div[role=\"button\"], a, span')); " +
+                    "  const validElements = elements.filter(el => " +
+                    "    el.innerText && el.innerText.trim().toLowerCase() === 'next' && " +
+                    "    el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().width > 0 " + // MUST be physically visible
+                    "  ); " +
+                    "  if (validElements.length > 0) { " +
+                    "    const realNextBtn = validElements[validElements.length - 1]; " + // The footer is always last in the DOM!
+                    "    realNextBtn.click(); " +
+                    "    return true; " +
+                    "  } " +
+                    "  return false; " +
+                    "}");
+
+            if (clicked) {
+                log.info("Successfully clicked the TRUE Next button via JS Split-Pane Override!");
+            } else {
+
+                page.getByRole(com.microsoft.playwright.options.AriaRole.BUTTON,
+                        new com.microsoft.playwright.Page.GetByRoleOptions().setName("Next")).last().click();
+                log.info("Clicked Next using Native Fallback!");
+            }
+
+            log.info("Waiting 8 seconds for Google Ads to finish saving...");
+            page.waitForTimeout(8000);
+
+        } catch (Exception e) {
+            log.warn("Next button disabled or Google is loading. Waiting 4 seconds...");
+            page.waitForTimeout(4000);
+        }
+    }
+
+    public void clickText(String text) {
+        log.info("AI locating and clicking visible text: '{}'", text);
+        try {
+
+            com.microsoft.playwright.Locator target = page.locator("text=\"" + text + "\" >> visible=true").first();
+
+            if (target.count() > 0) {
+                target.click(new com.microsoft.playwright.Locator.ClickOptions().setTimeout(5000));
+                log.info("Successfully clicked the visible text natively!");
+                page.waitForTimeout(2000);
+                return;
+            }
+
+            log.info("Native locator failed to pierce the nav bar. Firing Javascript override...");
+
+
+            boolean clickedWithJs = (boolean) page.evaluate("(textToFind) => { " +
+                    "  const elements = Array.from(document.querySelectorAll('a, button, [role=\"button\"], span')); " +
+                    "  const target = elements.find(el => " +
+                    "    el.innerText && el.innerText.toLowerCase().includes(textToFind.toLowerCase()) && " +
+                    "    el.getBoundingClientRect().height > 0 && el.getBoundingClientRect().width > 0 " + // Must be physically visible on screen
+                    "  ); " +
+                    "  if (target) { " +
+                    "    target.click(); " +
+                    "    return true; " +
+                    "  } " +
+                    "  return false; " +
+                    "}", text);
+
+            if (clickedWithJs) {
+                log.info("Successfully forced click using Javascript Override!");
+                page.waitForTimeout(2000);
+            } else {
+                throw new Exception("Element absolutely not found on screen.");
+            }
+
+        } catch (Exception e) {
+            log.warn("Could not find text '{}' to click. Scrolling down...", text);
+            page.keyboard().press("PageDown");
+        }
+    }
+
+    public void clickSuggestedAssets() {
+        log.info("AI activating Screenshot-Targeted Asset Picker...");
+        try {
+
+            page.keyboard().press("Escape");
+            page.keyboard().press("PageDown");
+            page.waitForTimeout(1000);
+
+
+            log.info("Hunting for the 'Select all' button for images...");
+            page.evaluate("() => { " +
+                    "  const btns = Array.from(document.querySelectorAll('button, div[role=\"button\"], span')); " +
+                    "  const selectAll = btns.find(b => b.innerText && b.innerText.trim() === 'Select all'); " +
+                    "  if (selectAll) selectAll.click(); " +
+                    "}");
+            page.waitForTimeout(2000);
+
+            log.info("Hunting for the '+ Logos' button...");
+            page.evaluate("() => { " +
+                    "  const btns = Array.from(document.querySelectorAll('button, div[role=\"button\"], span, a')); " +
+                    "  const addLogo = btns.find(b => b.innerText && b.innerText.trim() === '+ Logos'); " +
+                    "  if (addLogo) addLogo.click(); " +
+                    "}");
+            page.waitForTimeout(4000);
+
+            log.info("Switching to Stock Images tab in the modal...");
+            page.evaluate("() => { " +
+                    "  const tabs = Array.from(document.querySelectorAll('[role=\"tab\"], button')); " +
+                    "  const stockTab = tabs.find(t => t.innerText && t.innerText.toLowerCase().includes('stock')); " +
+                    "  if (stockTab) stockTab.click(); " +
+                    "}");
+            page.waitForTimeout(4000);
+
+
+            log.info("Selecting a stock logo...");
+            page.evaluate("() => { " +
+                    "  const modalImages = Array.from(document.querySelectorAll('dialog img, [role=\"dialog\"] img, [aria-modal=\"true\"] img'))" +
+                    "    .filter(img => img.getBoundingClientRect().width > 20); " +
+                    "  if (modalImages.length > 0) modalImages[0].click(); " +
+                    "}");
+            page.waitForTimeout(2000);
+
+            log.info("Saving the logo...");
+            page.evaluate("() => { " +
+                    "  const btns = Array.from(document.querySelectorAll('dialog button, [role=\"dialog\"] button, [aria-modal=\"true\"] button')); " +
+                    "  const saveBtn = btns.find(b => b.innerText && b.innerText.trim() === 'Save'); " +
+                    "  if (saveBtn) saveBtn.click(); " +
+                    "}");
+            page.waitForTimeout(3000);
+
+            page.keyboard().press("Escape");
+
+        } catch (Exception e) {
+            log.error("Targeted Asset Macro Failed. Scrolling down.", e);
+            page.keyboard().press("PageDown");
+        }
     }
 
     public void enableGestureScrolling() {

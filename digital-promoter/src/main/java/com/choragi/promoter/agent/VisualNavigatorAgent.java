@@ -21,7 +21,7 @@ public class VisualNavigatorAgent {
         log.info("Visual Agent starting task: {}", taskDescription);
 
 
-        for (int step = 1; step <= 25; step++) {
+        for (int step = 1; step <= 50; step++) {
             try {
                 byte[] screenshotBytes = browser.takeScreenshot();
 
@@ -52,21 +52,56 @@ public class VisualNavigatorAgent {
                     log.info("Activating Hand Gesture mode...");
                     browser.enableGestureScrolling();
                     break;
-                } else if (aiAction.contains("CLICK_AND_TYPE:")) {
-                    String rawArgs = aiAction.substring(aiAction.indexOf("CLICK_AND_TYPE:") + 15).split("\n")[0];
+                } else if (aiAction.contains("FILL_FIELD:")) {
+                    String rawArgs = aiAction.substring(aiAction.indexOf("FILL_FIELD:") + 11).split("\n")[0];
                     String cleanArgs = rawArgs.replace("[", "").replace("]", "").trim();
-                    String[] parts = cleanArgs.split(",", 3); // Split into exactly 3 pieces (X, Y, Text)
+                    String[] parts = cleanArgs.split(",", 2);
 
-                    int x = Integer.parseInt(parts[0].trim());
-                    int y = Integer.parseInt(parts[1].trim());
-                    String text = parts[2].trim();
-                    browser.clickAndType(x, y, text);
+                    String fieldName = parts[0].trim();
+                    String text = parts[1].trim();
+                    browser.fillFormBySelector(fieldName, text);
+
+                } else if (aiAction.contains("CLICK_SUGGESTED_ASSETS")) {
+                    browser.clickSuggestedAssets();
+
+                } else if (aiAction.contains("CLICK_NEXT")) {
+                    browser.clickNext();
+
+                } else if (aiAction.contains("ADD_SEARCH_THEME:")) {
+                    String theme = aiAction.substring(aiAction.indexOf("ADD_SEARCH_THEME:") + 17).trim();
+                    browser.addSearchTheme(theme);
 
                 } else if (aiAction.contains("CLICK:")) {
-                    String rawCoords = aiAction.substring(aiAction.indexOf("CLICK:") + 6).split("\n")[0];
-                    String cleanCoords = rawCoords.replaceAll("[^0-9,]", "").trim();
-                    String[] parts = cleanCoords.split(",");
-                    browser.click(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+                    String clickLine = aiAction.lines()
+                            .filter(line -> line.contains("CLICK:"))
+                            .findFirst()
+                            .orElse("");
+
+
+                    String cleanArgs = clickLine.substring(clickLine.indexOf("CLICK:") + 6)
+                            .replace("[", "").replace("]", "").trim();
+
+                    String[] coords = cleanArgs.split(",", 2);
+
+                    try {
+                        int x = Integer.parseInt(coords[0].trim());
+                        int y = Integer.parseInt(coords[1].trim());
+                        browser.click(x, y);
+                    } catch (NumberFormatException e) {
+                        log.warn("Failed to parse coordinates from AI string: {}. Falling back to PageDown.", aiAction);
+                        browser.page.keyboard().press("PageDown");
+                    }
+
+
+
+                } else if (aiAction.contains("CLICK_TEXT:")) {
+                    String targetText = aiAction.substring(aiAction.indexOf("CLICK_TEXT:") + 11).trim();
+                    log.info("AI requested to click exact text: {}", targetText);
+                    browser.clickText(targetText);
+
+                } else if (aiAction.contains("WAIT")) {
+                    log.info("AI requested a WAIT state. Pausing for 5 seconds...");
+                    browser.page.waitForTimeout(5000);
 
                 } else if (aiAction.contains("TYPE:")) {
                     String rawText = aiAction.substring(aiAction.indexOf("TYPE:") + 5).split("\n")[0];
