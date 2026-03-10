@@ -33,14 +33,14 @@ public class TwilioDialerTool {
         log.info("Choragi Dialer: Placing outbound negotiation call to Venue at {}", targetVenueNumber);
 
         try {
-            // Encode the venue name to safely attach it to the WebSocket URL
             String encodedVenue = URLEncoder.encode(venueName, StandardCharsets.UTF_8);
             String dynamicSocketUrl = websocketUrl + "?venue=" + encodedVenue;
 
+            // THE FIX: Added a 1-second pause at the very beginning to prevent the Trial Account crash!
             String twiml = String.format(
                     "<Response>" +
-                            "<Say>Connecting to the agent now.</Say>" +
                             "<Pause length=\"1\"/>" +
+                            "<Say>Connecting to the AI agent now.</Say>" +
                             "<Connect><Stream url=\"%s\" /></Connect>" +
                             "</Response>",
                     dynamicSocketUrl

@@ -1,5 +1,6 @@
 package com.choragi.creative.agent;
 
+import com.choragi.creative.tools.CloudStorageUploader;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import lombok.RequiredArgsConstructor;
@@ -11,7 +12,6 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Service
 @Slf4j
@@ -19,13 +19,13 @@ import java.util.concurrent.TimeUnit;
 public class CreativeDirectorAgent {
 
     private final Client client;
+    private final CloudStorageUploader cloudStorageUploader;
 
     @Value("${choragi.storage.bucket-name}")
     private String bucketName;
 
     public String generateTourPoster(String artistName, String theme, String date, String location) {
         log.info("Choragi Creative: Designing poster for {}...", artistName);
-
 
         String visualPrompt = String.format(
                 "A highly realistic, professional concert tour poster for '%s'. Theme: %s. " +
@@ -41,7 +41,7 @@ public class CreativeDirectorAgent {
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                log.info("Generating with Nano Banana (Attempt {})...", attempt);
+                log.info("Generating with Nano Banana 2 (Attempt {})...", attempt);
                 GenerateContentResponse response = client.models.generateContent(
                         "gemini-2.5-flash-image",
                         Content.builder().role("user").parts(Collections.singletonList(
@@ -50,7 +50,8 @@ public class CreativeDirectorAgent {
                         config
                 );
 
-                return response.candidates().orElse(Collections.emptyList()).stream()
+                // Extract the raw image bytes
+                byte[] imageBytes = response.candidates().orElse(Collections.emptyList()).stream()
                         .map(c -> c.content().orElse(null))
                         .filter(content -> content != null)
                         .map(content -> content.parts().orElse(Collections.emptyList()))
@@ -59,11 +60,16 @@ public class CreativeDirectorAgent {
                         .map(part -> part.inlineData().get().data().orElse(null))
                         .filter(bytes -> bytes != null && bytes.length > 0)
                         .findFirst()
-                        .map(imageBytes -> "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes))
-                        .orElse("NO_IMAGE_GENERATED");
+                        .orElse(null);
+
+                if (imageBytes != null) {
+                    // THE FIX: Convert bytes to Base64 and call your exact method name!
+                    String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+                    return cloudStorageUploader.uploadBase64Image(base64Image, artistName);
+                }
 
             } catch (Exception e) {
-                if (e.getMessage().contains("429") || e.getMessage().contains("Resource exhausted")) {
+                if (e.getMessage() != null && (e.getMessage().contains("429") || e.getMessage().contains("Resource exhausted"))) {
                     long wait = 2000L * attempt;
                     log.warn("Quota (429) hit. Cooling down for {}ms...", wait);
                     try { Thread.sleep(wait); } catch (InterruptedException ignored) {}
@@ -76,36 +82,27 @@ public class CreativeDirectorAgent {
         return "IMAGE_ERROR_FALLBACK";
     }
 
-
-
-    // 2. VEO VIDEO PROMO GENERATION
     public String generatePromoVideo(String artistName, String theme, String date, String location) {
         log.info("Choragi Creative: Directing promo video ad for {} at {}...", artistName, location);
 
-
         String safeTheme = theme.replaceAll("(?i)psychedelic", "retro kaleidoscope");
-
+        String uniqueId = java.util.UUID.randomUUID().toString().substring(0, 8);
 
         String videoPrompt = String.format(
-                "A dynamic, high-energy promotional video ad for a live music concert. " +
-                        "Visual style: %s. " +
-                        "The video should feel like a commercial trailer. " +
-                        "Audio MUST include a professional voiceover saying: 'Hurray! The hottest artist of the year will be live in town at %s on %s! " +
-                        "Bringing the musical magic and the glow of live music. Come and be energized!' " +
-                        "Background audio should include a cinematic hype soundtrack and an excited cheering crowd. " +
-                        "Visuals: cinematic shots of an excited concert crowd, dramatic stage lighting, and a generic lead singer performing passionately. DO NOT generate specific real people.",
-                safeTheme, location, date); // Notice artistName is gone from this list!
+                "[Unique Sequence: %s] Cinematic music video of a live rock band performing on a massive concert stage. " +
+                        "A lead singer is passionately holding a microphone, a guitarist is playing an electric guitar, and a drummer is playing a drum set. " +
+                        "Vibrant neon stage lights and sweeping lasers illuminating a huge, energetic cheering crowd. " +
+                        "Visual theme: %s. 4k resolution, photorealistic, highly detailed.",
+                uniqueId, safeTheme);
 
         String gcsOutput = "gs://" + bucketName + "/videos/";
 
         try {
-            log.info("Sending video ad request to Veo 3.1...");
+            log.info("Sending video ad request to Veo...");
 
             com.google.genai.types.GenerateVideosOperation operation = client.models.generateVideos(
                     "veo-3.1-generate-preview",
-                    com.google.genai.types.GenerateVideosSource.builder()
-                            .prompt(videoPrompt)
-                            .build(),
+                    com.google.genai.types.GenerateVideosSource.builder().prompt(videoPrompt).build(),
                     com.google.genai.types.GenerateVideosConfig.builder()
                             .aspectRatio("16:9")
                             .personGeneration("allow_adult")

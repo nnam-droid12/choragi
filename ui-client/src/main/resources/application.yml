@@ -1,7 +1,8 @@
+# Server Port
 server:
-  port: 8083
+  port: 8000
 
-spring:
-  cloud:
-    gcp:
-      project-id: nixora-project
+  # Gemini API Key (Reads from your system environment variables)
+gemini:
+  api:
+     key: ${GEMINI_API_KEY}

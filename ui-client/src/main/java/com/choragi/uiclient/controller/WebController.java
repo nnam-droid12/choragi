@@ -2,8 +2,10 @@ package com.choragi.uiclient.controller;
 
 import com.choragi.uiclient.service.ChoragiOrchestrator;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model; // Make sure to import this!
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,8 +16,12 @@ public class WebController {
 
     private final ChoragiOrchestrator orchestrator;
 
+    @Value("${gemini.api.key}")
+    private String geminiApiKey;
+
     @GetMapping("/")
-    public String index() {
+    public String index(Model model) {
+        model.addAttribute("geminiApiKey", geminiApiKey);
         return "index";
     }
 

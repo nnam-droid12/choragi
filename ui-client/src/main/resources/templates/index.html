@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,85 +7,137 @@
     <link rel="stylesheet" href="/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
 </head>
 <body>
-<div class="dashboard-container">
-    <header class="dashboard-header">
-        <div class="logo">
+
+<nav class="sticky-nav">
+    <div class="nav-logo"><i class="fa-solid fa-layer-group"></i> CHORAGI</div>
+    <div class="nav-links">
+        <a href="#hero-section">Command Center</a>
+        <a href="#sec-venue">Venue Finder</a>
+        <a href="#sec-negotiator">Negotiator</a>
+        <a href="#sec-creative">Creative</a>
+        <a href="#sec-website">Site Builder</a>
+        <a href="#sec-promoter">Promoter</a>
+    </div>
+</nav>
+
+<section id="hero-section" class="full-page-section bg-dark">
+    <div class="section-container">
+        <div class="top-panel" style="margin-top: 60px;">
+            <div class="voice-module panel">
+                <h2><i class="fa-solid fa-microphone-lines"></i> Voice Command</h2>
+                <div class="voice-visualizer" id="visualizer">
+                    <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+                </div>
+                <div class="controls">
+                    <button id="start-voice-btn" class="btn primary">Start Voice</button>
+                    <button id="stop-voice-btn" class="btn secondary" disabled>Stop</button>
+                </div>
+                <div id="voice-status" class="status-text">Disconnected</div>
+            </div>
+            <div class="terminal-module panel">
+                <div class="terminal-header"><span><i class="fa-solid fa-terminal"></i> Global Logs</span></div>
+                <div class="terminal-body" id="terminal-output">
+                    <p class="log-line system">> Choragi OS initialized...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="agents-grid">
+            <div class="agent-card" id="card-venue">
+                <div class="agent-icon"><i class="fa-solid fa-map-location-dot"></i></div>
+                <h3>Venue</h3><p class="agent-state">Waiting</p>
+                <div class="progress-bar"><div class="fill"></div></div>
+            </div>
+            <div class="agent-card" id="card-negotiator">
+                <div class="agent-icon"><i class="fa-solid fa-handshake-angle"></i></div>
+                <h3>Negotiator</h3><p class="agent-state">Waiting</p>
+                <div class="progress-bar"><div class="fill"></div></div>
+            </div>
+            <div class="agent-card" id="card-creative">
+                <div class="agent-icon"><i class="fa-solid fa-palette"></i></div>
+                <h3>Creative</h3><p class="agent-state">Waiting</p>
+                <div class="progress-bar"><div class="fill"></div></div>
+            </div>
+            <div class="agent-card" id="card-website">
+                <div class="agent-icon"><i class="fa-solid fa-code"></i></div>
+                <h3>Website</h3><p class="agent-state">Waiting</p>
+                <div class="progress-bar"><div class="fill"></div></div>
+            </div>
+            <div class="agent-card" id="card-promoter">
+                <div class="agent-icon"><i class="fa-solid fa-bullhorn"></i></div>
+                <h3>Promoter</h3><p class="agent-state">Waiting</p>
+                <div class="progress-bar"><div class="fill"></div></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section id="sec-venue" class="full-page-section bg-light">
+    <div class="section-container">
+        <h2 class="section-title"><i class="fa-solid fa-map-location-dot"></i> Venue Finder Agent Result</h2>
+        <div class="venue-grid" id="out-venue-content">
+            <div class="empty-state">Awaiting venue data...</div>
+        </div>
+    </div>
+</section>
+
+<section id="sec-negotiator" class="full-page-section bg-dark">
+    <div class="section-container">
+        <h2 class="section-title"><i class="fa-solid fa-handshake-angle"></i> Live Negotiator Agent Result</h2>
+        <div id="out-negotiator-content" class="content-box">
+            <div class="empty-state">Awaiting call execution...</div>
+        </div>
+    </div>
+</section>
+
+<section id="sec-creative" class="full-page-section bg-light">
+    <div class="section-container">
+        <h2 class="section-title"><i class="fa-solid fa-palette"></i> Creative Director Agent Result</h2>
+        <div class="creative-display" id="out-creative-content">
+            <div class="empty-state" style="width: 100%;">Awaiting asset generation...</div>
+        </div>
+    </div>
+</section>
+
+<section id="sec-website" class="full-page-section bg-dark">
+    <div class="section-container">
+        <h2 class="section-title"><i class="fa-solid fa-code"></i> Site Builder Agent Result</h2>
+        <div id="out-website-content" class="content-box">
+            <div class="empty-state">Awaiting site deployment...</div>
+        </div>
+    </div>
+</section>
+
+<section id="sec-promoter" class="full-page-section bg-light">
+    <div class="section-container">
+        <h2 class="section-title"><i class="fa-solid fa-bullhorn"></i> Digital Promoter Agent Result</h2>
+        <div id="out-promoter-content" class="content-box">
+            <div class="empty-state">Awaiting Google Ads launch...</div>
+        </div>
+    </div>
+</section>
+
+<footer class="site-footer">
+    <div class="footer-container">
+        <div class="footer-brand">
             <i class="fa-solid fa-layer-group"></i> CHORAGI <span>AI ENGINE</span>
         </div>
-        <div class="system-status">
-            <span class="pulse-dot"></span> System Online
+        <p class="footer-tagline">Autonomous Multi-Agent Concert Orchestration Protocol.</p>
+        <div class="footer-links">
+            <a href="#hero-section"><i class="fa-solid fa-rocket"></i> Command Center</a>
+            <a href="#"><i class="fa-solid fa-shield-halved"></i> System Status</a>
         </div>
-    </header>
-
-    <div class="top-panel">
-        <div class="voice-module panel">
-            <h2><i class="fa-solid fa-microphone-lines"></i> Gemini Multimodal Live</h2>
-            <p>Speak to Choragi to initiate the concert planning protocol.</p>
-
-            <div class="voice-visualizer" id="visualizer">
-                <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            </div>
-
-            <div class="controls">
-                <button id="start-voice-btn" class="btn primary"><i class="fa-solid fa-microphone"></i> Start Session</button>
-                <button id="stop-voice-btn" class="btn secondary" disabled><i class="fa-solid fa-stop"></i> Stop</button>
-            </div>
-            <div id="voice-status" class="status-text">Disconnected</div>
-        </div>
-
-        <div class="terminal-module panel">
-            <div class="terminal-header">
-                <span><i class="fa-solid fa-terminal"></i> Global Execution Logs</span>
-            </div>
-            <div class="terminal-body" id="terminal-output">
-                <p class="log-line system">> Choragi OS v2.4 initialized. Waiting for voice input...</p>
-            </div>
+        <div class="footer-bottom">
+            &copy; 2026 Choragi Systems. All rights reserved. Powered by Gemini Multimodal Live.
         </div>
     </div>
+</footer>
 
-    <div class="agents-grid">
-        <div class="agent-card" id="card-venue">
-            <div class="agent-icon"><i class="fa-solid fa-map-location-dot"></i></div>
-            <h3>Venue Finder</h3>
-            <p class="agent-state">Awaiting Orders</p>
-            <div class="progress-bar"><div class="fill"></div></div>
-        </div>
-
-        <div class="agent-card" id="card-negotiator">
-            <div class="agent-icon"><i class="fa-solid fa-handshake-angle"></i></div>
-            <h3>Negotiator</h3>
-            <p class="agent-state">Awaiting Orders</p>
-            <div class="progress-bar"><div class="fill"></div></div>
-        </div>
-
-        <div class="agent-card" id="card-creative">
-            <div class="agent-icon"><i class="fa-solid fa-palette"></i></div>
-            <h3>Creative Director</h3>
-            <p class="agent-state">Awaiting Orders</p>
-            <div class="progress-bar"><div class="fill"></div></div>
-        </div>
-
-        <div class="agent-card" id="card-website">
-            <div class="agent-icon"><i class="fa-solid fa-code"></i></div>
-            <h3>Website Builder</h3>
-            <p class="agent-state">Awaiting Orders</p>
-            <div class="progress-bar"><div class="fill"></div></div>
-        </div>
-
-        <div class="agent-card" id="card-promoter">
-            <div class="agent-icon"><i class="fa-solid fa-bullhorn"></i></div>
-            <h3>Digital Promoter</h3>
-            <p class="agent-state">Awaiting Orders</p>
-            <div class="progress-bar"><div class="fill"></div></div>
-        </div>
-    </div>
-</div>
-
+<script th:inline="javascript">window.ENV_GEMINI_API_KEY = /*[[${geminiApiKey}]]*/ '';</script>
 <script src="/js/app.js"></script>
 </body>
 </html>

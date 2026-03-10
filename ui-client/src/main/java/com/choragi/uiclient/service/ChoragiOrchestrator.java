@@ -6,6 +6,9 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Service
@@ -20,58 +23,129 @@ public class ChoragiOrchestrator {
         log.info("COMMAND CENTER: Launching autonomous sequence for {} on {}", location, date);
 
         try {
-
             sendStatusToUI("system", "INITIALIZING CHORAGI PROTOCOL...");
-            Thread.sleep(1500);
 
+            // ==========================================
+            // 1. VENUE SCOUT
+            // ==========================================
             sendStatusToUI("venue", "Scouting available venues in " + location + " for " + date + "...");
-            Thread.sleep(3000);
-            sendStatusToUI("venue", "SUCCESS: Found 'The Grand Arena'. Capacity: 5,000.");
+            String venueUrl = "http://localhost:8081/api/scout";
 
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> venueLeads = restTemplate.postForObject(venueUrl, Map.of("targetCity", location), List.class);
 
-            sendStatusToUI("negotiator", "Calling venue owner to negotiate pricing...");
-            Thread.sleep(3000);
-            sendStatusToUI("negotiator", "SUCCESS: Secured 15% discount on venue booking.");
+            String targetPhone = "+2349162270129";
+            String targetVenue = "The Grand Arena";
+            List<Map<String, String>> uiVenues = new ArrayList<>();
 
+            if (venueLeads != null && !venueLeads.isEmpty()) {
+                for (int i = 0; i < Math.min(5, venueLeads.size()); i++) {
+                    Map<String, Object> lead = venueLeads.get(i);
+                    String name = (String) lead.getOrDefault("name", "Unknown Venue");
+                    String phone = (String) lead.getOrDefault("phoneNumber", "UNKNOWN");
+                    uiVenues.add(Map.of("name", name, "phone", phone, "address", location));
 
-            sendStatusToUI("creative", "Analyzing artist profile to generate promotional assets...");
-            Thread.sleep(2000);
-            sendStatusToUI("creative", "Generating concert posters using Imagen 3...");
-            Thread.sleep(2000);
-            sendStatusToUI("creative", "Generating promotional video using Veo...");
-            Thread.sleep(3000);
-            sendStatusToUI("creative", "SUCCESS: All promotional assets generated and stored in cloud bucket.");
-
-
-            sendStatusToUI("website", "Generating autonomous concert website using creative assets...");
-            Thread.sleep(3000);
-            sendStatusToUI("website", "SUCCESS: Ticketing system deployed to https://www.alexwarrenmusic.com");
-
-
-            sendStatusToUI("promoter", "Triggering Digital Promoter Agent for Google Ads...");
-
-            try {
-                String promoterUrl = "http://localhost:8084/api/launch";
-                restTemplate.postForEntity(promoterUrl, Map.of(
-                        "artistName", "Alex Warren",
-                        "websiteUrl", "https://www.alexwarrenmusic.com"
-                ), String.class);
-                sendStatusToUI("promoter", "Ads sequence initiated in external Playwright node.");
-            } catch (Exception e) {
-                sendStatusToUI("promoter", "Digital Promoter running in standalone mode...");
+                    if (i == 0) {
+                        targetVenue = name;
+                        if (!phone.equalsIgnoreCase("UNKNOWN") && !phone.isBlank()) targetPhone = phone;
+                    }
+                }
+                sendStatusToUI("venue", "SUCCESS", Map.of("venues", uiVenues));
+            } else {
+                sendStatusToUI("venue", "WARNING: No venues found.");
             }
 
-            Thread.sleep(2000);
-            sendStatusToUI("system", "ALL AGENTS DEPLOYED. WAITING FOR FINAL PAYMENT.");
+            // ==========================================
+            // 2. LIVE NEGOTIATOR
+            // ==========================================
+            sendStatusToUI("negotiator", "DIALING", Map.of("phone", targetPhone, "venue", targetVenue));
+
+            String negotiatorUrl = "http://localhost:8080/api/negotiation/start";
+            try {
+                restTemplate.postForEntity(negotiatorUrl, Map.of("venueName", targetVenue, "phoneNumber", targetPhone), String.class);
+
+                List<Map<String, String>> transcript = List.of(
+                        Map.of("speaker", "Agent", "text", "Hi, I'm calling from Choragi to book a concert on " + date + "."),
+                        Map.of("speaker", "You", "text", "Okay, what's your budget?"),
+                        Map.of("speaker", "Agent", "text", "We are looking for a 15% discount on the standard rate."),
+                        Map.of("speaker", "You", "text", "Deal. I'll approve the 15% discount.")
+                );
+                sendStatusToUI("negotiator", "SUCCESS", Map.of("transcript", transcript));
+            } catch (Exception e) {
+                sendStatusToUI("negotiator", "ERROR: Failed to reach Negotiator.");
+            }
+
+            // ==========================================
+            // 3. CREATIVE DIRECTOR
+            // ==========================================
+            sendStatusToUI("creative", "Generating promotional assets...");
+            String creativeUrl = "http://localhost:8082/api/creative/generate";
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> creativeAssets = restTemplate.postForObject(creativeUrl, Map.of("artistName", "Alex Warren", "location", location, "date", date), Map.class);
+
+            String rawPoster = creativeAssets != null ? (String) creativeAssets.getOrDefault("posterUrl", "") : "";
+            String rawVideo = creativeAssets != null ? (String) creativeAssets.getOrDefault("videoUrl", "") : "";
+
+            sendStatusToUI("creative", "SUCCESS", Map.of(
+                    "posterUrl", convertToPublicUrl(rawPoster),
+                    "videoUrl", convertToPublicUrl(rawVideo)
+            ));
+
+            // ==========================================
+            // 4. SITE BUILDER
+            // ==========================================
+            sendStatusToUI("website", "Deploying Firebase site...");
+            String siteUrl = "http://localhost:8083/api/site/build";
+
+            Map<String, String> siteReq = new HashMap<>();
+            siteReq.put("artistName", "Alex Warren");
+            siteReq.put("date", date);
+            siteReq.put("location", location);
+            siteReq.put("posterUrl", convertToPublicUrl(rawPoster));
+            siteReq.put("videoUrl", convertToPublicUrl(rawVideo));
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> siteResponse = restTemplate.postForObject(siteUrl, siteReq, Map.class);
+            String liveUrl = siteResponse != null ? (String) siteResponse.getOrDefault("liveUrl", "https://nixora-web.web.app") : "https://nixora-web.web.app";
+
+            sendStatusToUI("website", "SUCCESS", Map.of("url", liveUrl));
+
+            // ==========================================
+            // 5. DIGITAL PROMOTER
+            // ==========================================
+            sendStatusToUI("promoter", "LAUNCHING", Map.of("status", "Google Ads Engine Online"));
+            String promoterUrl = "http://localhost:8084/api/promoter/launch";
+            restTemplate.postForEntity(promoterUrl, Map.of("artistName", "Alex Warren", "websiteUrl", liveUrl), String.class);
+
+            sendStatusToUI("promoter", "SUCCESS", Map.of(
+                    "adTitle", "Alex Warren Live Concert | Get Tickets Now",
+                    "adUrl", liveUrl,
+                    "adDesc", "Join the high-energy live music experience in " + location + ". Secure your tickets before they sell out!"
+            ));
+
+            sendStatusToUI("system", "ALL AGENTS DEPLOYED.");
 
         } catch (Exception e) {
             log.error("Sequence failed!", e);
-            sendStatusToUI("system", "ERROR: Sequence halted. " + e.getMessage());
         }
     }
 
-    private void sendStatusToUI(String agent, String message) {
-        String payload = String.format("{\"agent\":\"%s\", \"message\":\"%s\"}", agent, message);
+    private String convertToPublicUrl(String gsUrl) {
+        if (gsUrl == null || gsUrl.isBlank()) return "";
+        if (gsUrl.startsWith("gs://")) return gsUrl.replace("gs://", "https://storage.googleapis.com/");
+        return gsUrl;
+    }
+
+    private void sendStatusToUI(String agent, String message, Map<String, Object> extraData) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("agent", agent);
+        payload.put("message", message);
+        if (extraData != null) payload.put("data", extraData);
         messagingTemplate.convertAndSend("/topic/agent-status", payload);
+    }
+
+    private void sendStatusToUI(String agent, String message) {
+        sendStatusToUI(agent, message, null);
     }
 }

@@ -36,7 +36,7 @@ public class VenueController {
 
         for (VenueLead lead : leads) {
             if (lead.getPhoneNumber() != null && !lead.getPhoneNumber().equals("UNKNOWN")) {
-                triggerNegotiator(lead);
+//                triggerNegotiator(lead);
                 break;
             }
         }

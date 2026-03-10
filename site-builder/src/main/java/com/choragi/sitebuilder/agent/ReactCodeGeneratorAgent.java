@@ -21,8 +21,8 @@ public class ReactCodeGeneratorAgent {
                         "styled with Tailwind CSS via CDN. " +
                         "It must be a dark-themed, cinematic concert landing page for '%s'. " +
                         "Include these details: Date: %s, Location: %s. " +
-                        "Display this poster image prominently: %s " +
-                        "Embed this promotional video using an HTML5 <video> tag (autoplay, muted, loop): %s " +
+                        "CRITICAL INSTRUCTION 1: You MUST display the concert poster using EXACTLY this HTML: <img src=\"%s\" alt=\"Concert Poster\" className=\"w-full max-w-md mx-auto rounded-lg shadow-2xl mb-8\" /> " +
+                        "CRITICAL INSTRUCTION 2: You MUST embed the promotional video using EXACTLY this HTML: <video src=\"%s\" autoPlay muted loop playsInline className=\"w-full max-w-2xl mx-auto rounded-lg shadow-2xl mb-8\"></video> " +
                         "Include a functional-looking 'Register for Tickets' form (Name, Email, Phone, and a Submit button). " +
                         "RETURN ONLY THE RAW HTML CODE. Do not include markdown formatting like ```html.",
                 artistName, date, location, posterUrl, videoUrl != null ? videoUrl : ""
