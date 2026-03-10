@@ -84,12 +84,19 @@ public class ChoragiOrchestrator {
             @SuppressWarnings("unchecked")
             Map<String, Object> creativeAssets = restTemplate.postForObject(creativeUrl, Map.of("artistName", "Alex Warren", "location", location, "date", date), Map.class);
 
-            String rawPoster = creativeAssets != null ? (String) creativeAssets.getOrDefault("posterUrl", "") : "";
-            String rawVideo = creativeAssets != null ? (String) creativeAssets.getOrDefault("videoUrl", "") : "";
+            // LOGGING THE RAW DATA SO YOU CAN SEE WHAT IS ACTUALLY ARRIVING!
+            log.info("RAW CREATIVE RESPONSE: {}", creativeAssets);
+
+            // THE FIX: Smart extraction that checks all possible JSON key variations!
+            String rawPoster = extractValue(creativeAssets, "posterUrl", "poster", "imageUrl", "image");
+            String rawVideo = extractValue(creativeAssets, "videoUrl", "video", "promoVideo");
+
+            String publicPoster = convertToPublicUrl(rawPoster);
+            String publicVideo = convertToPublicUrl(rawVideo);
 
             sendStatusToUI("creative", "SUCCESS", Map.of(
-                    "posterUrl", convertToPublicUrl(rawPoster),
-                    "videoUrl", convertToPublicUrl(rawVideo)
+                    "posterUrl", publicPoster,
+                    "videoUrl", publicVideo
             ));
 
             // ==========================================
@@ -102,12 +109,13 @@ public class ChoragiOrchestrator {
             siteReq.put("artistName", "Alex Warren");
             siteReq.put("date", date);
             siteReq.put("location", location);
-            siteReq.put("posterUrl", convertToPublicUrl(rawPoster));
-            siteReq.put("videoUrl", convertToPublicUrl(rawVideo));
+            siteReq.put("posterUrl", publicPoster);
+            siteReq.put("videoUrl", publicVideo);
 
             @SuppressWarnings("unchecked")
             Map<String, Object> siteResponse = restTemplate.postForObject(siteUrl, siteReq, Map.class);
-            String liveUrl = siteResponse != null ? (String) siteResponse.getOrDefault("liveUrl", "https://nixora-web.web.app") : "https://nixora-web.web.app";
+            String liveUrl = extractValue(siteResponse, "liveUrl", "url", "websiteUrl");
+            if (liveUrl.isEmpty()) liveUrl = "https://nixora-web.web.app";
 
             sendStatusToUI("website", "SUCCESS", Map.of("url", liveUrl));
 
@@ -129,6 +137,17 @@ public class ChoragiOrchestrator {
         } catch (Exception e) {
             log.error("Sequence failed!", e);
         }
+    }
+
+    // HELPER: Scans the JSON map for multiple possible keys
+    private String extractValue(Map<String, Object> map, String... keys) {
+        if (map == null) return "";
+        for (String key : keys) {
+            if (map.containsKey(key) && map.get(key) != null) {
+                return String.valueOf(map.get(key));
+            }
+        }
+        return "";
     }
 
     private String convertToPublicUrl(String gsUrl) {
