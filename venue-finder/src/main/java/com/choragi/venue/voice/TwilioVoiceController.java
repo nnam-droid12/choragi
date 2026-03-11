@@ -11,7 +11,7 @@ public class TwilioVoiceController {
     @RequestMapping(value = "/connect", produces = "application/xml")
     public String handleVoiceConnect() {
 
-        String socketUrl = "wss://84c7-105-119-3-128.ngrok-free.app/voice-stream";
+        String socketUrl = "wss://8dd1-105-119-5-84.ngrok-free.app/voice-stream";
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
                 "<Response>\n" +

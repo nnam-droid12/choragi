@@ -31,13 +31,13 @@ public class TwilioDialerTool {
         log.info("Choragi Dialer: Waking up and initializing Twilio SDK...");
     }
 
-    // THE FIX: Method signature now perfectly matches your VoiceNegotiatorAgent!
+
     public boolean initiateNegotiationCall(String targetPhoneNumber, String venueName) {
         log.info("Choragi Dialer: Placing outbound negotiation call to {} at {}", venueName, targetPhoneNumber);
         log.info("Choragi Dialer: Sending TwiML payload with dynamic URL");
 
-        // The TwiML tells Twilio to immediately connect the answered call to your AI WebSocket
-        String twiml = "<Response><Connect><Stream url=\"" + websocketUrl + "\"/></Connect></Response>";
+
+        String twiml = "<Response><Say>Hello, connecting you to the Choragi AI.</Say><Connect><Stream url=\"" + websocketUrl + "\"/></Connect></Response>";
 
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
@@ -49,7 +49,7 @@ public class TwilioDialerTool {
                 ).create();
 
                 log.info("Call successfully dispatched to telecom network! Call SID: {}", call.getSid());
-                return true; // Success! Returns true to the Agent.
+                return true;
 
             } catch (Exception e) {
                 log.error("Choragi Dialer: Failed to dispatch outbound call (Attempt {}). Error: {}", attempt, e.getMessage());

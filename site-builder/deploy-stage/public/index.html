@@ -1,1 +1,83 @@
-<html><body><h1>Error generating site</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>alex ware - Live in Concert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gray-900 text-white antialiased">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const App = () => {
+            return (
+                <div className="min-h-screen bg-gray-900 text-gray-100 font-sans selection:bg-purple-500 selection:text-white">
+                    {/* Navigation */}
+                    <nav className="p-6 flex justify-between items-center max-w-6xl mx-auto">
+                        <div className="text-2xl font-bold tracking-tighter text-purple-400">AW</div>
+                        <button className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-full transition-colors shadow-lg shadow-purple-500/30">
+                            Buy Tickets
+                        </button>
+                    </nav>
+
+                    {/* Hero Section */}
+                    <main className="container mx-auto px-4 py-12 text-center">
+                        <h1 className="text-6xl md:text-8xl font-extrabold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 drop-shadow-lg">
+                            alex ware
+                        </h1>
+                        
+                        <div className="flex flex-col md:flex-row justify-center items-center gap-4 md:gap-12 text-xl md:text-2xl font-light mb-16 bg-gray-800/50 inline-flex py-4 px-8 rounded-2xl border border-gray-700 backdrop-blur-sm">
+                            <div className="flex items-center gap-3">
+                                <svg className="w-6 h-6 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                </svg>
+                                <span className="font-medium tracking-wide">june 20th</span>
+                            </div>
+                            <div className="hidden md:block w-px h-8 bg-gray-600"></div>
+                            <div className="flex items-center gap-3">
+                                <svg className="w-6 h-6 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                </svg>
+                                <span className="font-medium tracking-wide">austin texas</span>
+                            </div>
+                        </div>
+
+                        {/* Media Section */}
+                        <div className="mb-20 px-4">
+                            <div className="relative">
+                                <div className="absolute inset-0 bg-gradient-to-b from-purple-500/10 to-pink-500/10 blur-3xl -z-10 rounded-full"></div>
+                                <img src="https://storage.googleapis.com/choragi-assets-bucket/posters/alex_ware-babad448-0fbb-428c-bc34-d326d3266fb1.png" alt="Concert Poster" className="w-full max-w-md mx-auto rounded-lg shadow-2xl mb-8" />
+                                <video src="https://storage.googleapis.com/choragi-assets-bucket/videos/7195333786000180412/sample_0.mp4" autoPlay muted loop playsInline className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl mb-8"></video>
+                            </div>
+                        </div>
+
+                        {/* CTA Section */}
+                        <div className="max-w-3xl mx-auto bg-gradient-to-b from-gray-800 to-gray-900 rounded-3xl p-10 shadow-2xl border border-gray-700 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                            <h2 className="text-4xl font-bold mb-4 text-white">Experience the Magic Live</h2>
+                            <p className="text-gray-400 mb-8 text-lg">Join us for an unforgettable night of live music. Tickets are strictly limited and selling fast!</p>
+                            <button className="w-full md:w-auto px-12 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xl font-bold rounded-full shadow-lg shadow-pink-500/25 transform hover:-translate-y-1 transition-all duration-200">
+                                Secure Your Spot
+                            </button>
+                        </div>
+                    </main>
+
+                    {/* Footer */}
+                    <footer className="border-t border-gray-800 mt-24 py-10 text-center text-gray-500 bg-gray-950">
+                        <p className="mb-2">&copy; {new Date().getFullYear()} alex ware. All rights reserved.</p>
+                        <p className="text-sm">june 20th | austin texas</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
