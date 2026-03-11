@@ -8,9 +8,6 @@ let processor = null;
 let isSetupComplete = false;
 let nextAudioTime = 0;
 
-// THE MEMORY ENGINE: Load previous state if it exists
-let uiState = JSON.parse(localStorage.getItem('choragiUiState')) || {};
-
 const btnStart = document.getElementById('start-voice-btn');
 const btnStop = document.getElementById('stop-voice-btn');
 const visualizer = document.getElementById('visualizer');
@@ -46,33 +43,25 @@ function logToTerminal(agent, message) {
 function updateAgentCards(activeAgent, message, extraData) {
     const agents = ['venue', 'negotiator', 'creative', 'website', 'promoter'];
 
-    // Save data to browser memory!
-    if (extraData) {
-        uiState[activeAgent] = extraData;
-        localStorage.setItem('choragiUiState', JSON.stringify(uiState));
-    }
-
-    // 1. Update the Hero Progress Cards
+    // 1. Update active states
     agents.forEach(agent => {
         const card = document.getElementById(`card-${agent}`);
         if (!card) return;
-
-        if (agent === activeAgent) {
+        if (agent === activeAgent && !message.includes("SUCCESS") && message !== "DONE") {
             card.classList.add('active');
+            card.classList.remove('completed');
             card.querySelector('.agent-state').innerText = "Processing...";
         }
     });
 
-    // 2. Inject Data into the Full-Page Sections
-    const sectionData = extraData || uiState[activeAgent]; // Use live data OR memory data
-
-    if (sectionData) {
+    // 2. Render purely from LIVE extraData (No Memory!)
+    if (extraData) {
         const sec = document.getElementById(`sec-${activeAgent}`);
         if (sec) sec.style.display = 'block';
 
-        if (activeAgent === 'venue' && sectionData.venues) {
+        if (activeAgent === 'venue' && extraData.venues) {
             let html = '';
-            sectionData.venues.forEach(v => {
+            extraData.venues.forEach(v => {
                 html += `
                     <div class="venue-card">
                         <h4>${v.name}</h4>
@@ -88,11 +77,11 @@ function updateAgentCards(activeAgent, message, extraData) {
                 content.innerHTML = `
                     <div class="calling-signal">
                         <div class="bars-container"><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div></div>
-                        Dialing Network: Calling ${sectionData.phone}...
+                        Dialing Network: Calling ${extraData.phone}...
                     </div>`;
-            } else if (sectionData.transcript) {
+            } else if (extraData.transcript) {
                 let chatHtml = '<div style="display:flex; flex-direction:column;">';
-                sectionData.transcript.forEach(line => {
+                extraData.transcript.forEach(line => {
                     const cssClass = line.speaker === 'You' ? 'bubble-you' : 'bubble-agent';
                     chatHtml += `<div class="transcript-bubble ${cssClass}"><strong>${line.speaker}:</strong> ${line.text}</div>`;
                 });
@@ -102,55 +91,49 @@ function updateAgentCards(activeAgent, message, extraData) {
         }
         else if (activeAgent === 'creative') {
             let mediaHtml = '';
-            if (sectionData.posterUrl) {
-                mediaHtml += `
-                    <div class="creative-item">
-                        <div class="creative-label">Concert Poster</div>
-                        <img src="${sectionData.posterUrl}" alt="Concert Poster">
-                    </div>`;
+            if (extraData.posterUrl && extraData.posterUrl.includes("http")) {
+                mediaHtml += `<div class="creative-item"><div class="creative-label">Concert Poster</div><img src="${extraData.posterUrl}" alt="Concert Poster"></div>`;
+            } else {
+                mediaHtml += `<div class="creative-item"><div class="creative-label">Image Error</div><p style="padding:20px; color:red;">No valid image URL provided by backend.</p></div>`;
             }
-            if (sectionData.videoUrl) {
-                mediaHtml += `
-                    <div class="creative-item">
-                        <div class="creative-label">Promo Video</div>
-                        <video src="${sectionData.videoUrl}" autoplay loop muted></video>
-                    </div>`;
+
+            if (extraData.videoUrl && extraData.videoUrl.includes("http")) {
+                mediaHtml += `<div class="creative-item"><div class="creative-label">Promo Video</div><video src="${extraData.videoUrl}" autoplay loop muted></video></div>`;
+            } else {
+                mediaHtml += `<div class="creative-item"><div class="creative-label">Video Error</div><p style="padding:20px; color:red;">No valid video URL provided by backend.</p></div>`;
             }
+
             document.getElementById('out-creative-content').innerHTML = mediaHtml;
         }
         else if (activeAgent === 'website') {
             document.getElementById('out-website-content').innerHTML = `
                 <div style="text-align: center; padding: 40px 0;">
-                    <a href="${sectionData.url}" target="_blank" class="site-link-btn">
+                    <a href="${extraData.url}" target="_blank" class="site-link-btn">
                         <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Live Website
                     </a>
-                    <p style="margin-top:20px; font-family:'Fira Code', monospace; color:#00ff88; font-size: 1.2rem;">URL: ${sectionData.url}</p>
+                    <p style="margin-top:20px; font-family:'Fira Code', monospace; color:#00ff88; font-size: 1.2rem;">URL: ${extraData.url}</p>
                 </div>`;
 
-            // Only auto-open if it's a fresh live generation
             if (message.includes("SUCCESS") && !window.websiteOpened) {
-                window.open(sectionData.url, '_blank');
+                window.open(extraData.url, '_blank');
                 window.websiteOpened = true;
             }
         }
         else if (activeAgent === 'promoter') {
-            if (sectionData.adTitle) {
+            if (extraData.adTitle) {
                 document.getElementById('out-promoter-content').innerHTML = `
                     <div class="google-ad-preview">
                         <div class="ad-sponsored">Sponsored</div>
-                        <div class="ad-url">${sectionData.adUrl}</div>
-                        <div class="ad-title">${sectionData.adTitle}</div>
-                        <div class="ad-desc">${sectionData.adDesc}</div>
+                        <div class="ad-url">${extraData.adUrl}</div>
+                        <div class="ad-title">${extraData.adTitle}</div>
+                        <div class="ad-desc">${extraData.adDesc}</div>
                     </div>`;
             }
         }
     }
 
-    // Save completion state to memory
+    // 3. Mark as completed
     if (message.includes("SUCCESS") || message === "DONE") {
-        uiState[`${activeAgent}_completed`] = true;
-        localStorage.setItem('choragiUiState', JSON.stringify(uiState));
-
         const activeCard = document.querySelector('.agent-card.active');
         if (activeCard) {
             activeCard.classList.remove('active');
@@ -159,8 +142,8 @@ function updateAgentCards(activeAgent, message, extraData) {
         }
     }
 
-
-    if ((message.includes("SUCCESS") || message === "DONE" || message === "DIALING") && !window.isRestoring) {
+    // 4. Auto-scroll
+    if (message.includes("SUCCESS") || message === "DONE" || message === "DIALING") {
         const targetSection = document.getElementById(`sec-${activeAgent}`);
         if (targetSection) {
             targetSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -168,32 +151,6 @@ function updateAgentCards(activeAgent, message, extraData) {
     }
 }
 
-// THE RESTORER: Builds the UI from memory on load
-function restoreUiState() {
-    window.isRestoring = true;
-    const agents = ['venue', 'negotiator', 'creative', 'website', 'promoter'];
-    agents.forEach(agent => {
-        if (uiState[agent] && uiState[`${agent}_completed`]) {
-            // Force the UI to build this section as 'completed' using saved data
-            updateAgentCards(agent, "SUCCESS", uiState[agent]);
-        }
-    });
-    window.isRestoring = false;
-}
-
-
-const logoEl = document.querySelector('.nav-logo');
-if (logoEl) {
-    logoEl.addEventListener('dblclick', () => {
-        localStorage.removeItem('choragiUiState');
-        alert("Choragi Memory Wiped! Resetting Dashboard.");
-        location.reload();
-    });
-}
-
-// ==========================================
-// GEMINI VOICE
-// ==========================================
 async function startVoiceSession() {
     voiceStatus.innerText = "Connecting to Gemini...";
     btnStart.disabled = true;
@@ -214,7 +171,7 @@ async function startVoiceSession() {
                     generationConfig: { responseModalities: ["AUDIO"] },
                     systemInstruction: {
                         parts: [{
-                            text: "You are Choragi, an AI assistant that plans live musical concerts. You MUST ALWAYS speak and respond strictly in English, no matter what. Ask the user for a concert location, and then ask for a date. \n\nCRITICAL INSTRUCTION: Once you have BOTH the location and the date, you MUST write this exact phrase in your internal thoughts: 'TRIGGER_AGENTS: location | date'. For example: 'TRIGGER_AGENTS: Austin Texas | April 15th 2026'. After thinking that, tell the user out loud 'I will start deploying your agents to work immediately.' Do not attempt to call any functions."
+                            text: "You are Choragi, an AI assistant that plans live musical concerts. You MUST ALWAYS speak and respond strictly in English. First, ask the user for the name of the artist performing. Second, ask for the concert location. Third, ask for the date. \n\nCRITICAL INSTRUCTION: Once the user has provided ALL THREE details, you MUST say exactly this phrase out loud to the user: 'Deploying agents for [Artist] in [Location] on [Date].' (Replace the brackets with the actual details). For example: 'Deploying agents for Bruno Mars in Austin Texas on April 15th.' Do not say any extra words after this phrase."
                         }]
                     }
                 }
@@ -244,15 +201,36 @@ async function startVoiceSession() {
                         }
 
                         if (part.text && !window.hasTriggeredAgents) {
+                            console.log("🗣️ AI Spoke:", part.text);
+
                             const thought = part.text.toLowerCase();
-                            if (thought.includes("deploy") || thought.includes("agent") || thought.includes("austin")) {
+
+                            if (thought.includes("deploying agents for")) {
                                 window.hasTriggeredAgents = true;
-                                const loc = "Austin, Texas";
-                                const dt = "April 15, 2026";
+
+                                let artistName = "Unknown Artist";
+                                let location = "Austin, Texas";
+                                let date = "April 15, 2026";
+
+                                try {
+                                    const regex = /deploying agents for (.*?) in (.*?) on (.*?)(?:\.|$)/i;
+                                    const match = thought.match(regex);
+
+                                    if (match) {
+                                        artistName = match[1].replace(/[^a-z0-9 ]/gi, '').trim();
+                                        location = match[2].replace(/[^a-z0-9 ,]/gi, '').trim();
+                                        date = match[3].replace(/[^a-z0-9 ,]/gi, '').trim();
+                                    }
+                                } catch (e) {
+                                    console.error("Failed to extract details from speech", e);
+                                }
+
+                                logToTerminal('system', `Launch sequence confirmed for ${artistName} in ${location} on ${date}`);
+
                                 fetch('/api/trigger-agents', {
                                     method: 'POST',
                                     headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ location: loc, date: dt })
+                                    body: JSON.stringify({ artistName: artistName, location: location, date: date })
                                 });
                             }
                         }
@@ -332,8 +310,4 @@ function stopVoiceSession() {
 document.getElementById('start-voice-btn').addEventListener('click', startVoiceSession);
 document.getElementById('stop-voice-btn').addEventListener('click', stopVoiceSession);
 
-
-window.addEventListener('DOMContentLoaded', () => {
-    connectToJavaBackend();
-    restoreUiState();
-});
+window.addEventListener('DOMContentLoaded', connectToJavaBackend);

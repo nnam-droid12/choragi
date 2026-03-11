@@ -1,6 +1,5 @@
 package com.choragi.creative.agent;
 
-import com.choragi.creative.tools.CloudStorageUploader;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import java.util.List;
 public class CreativeDirectorAgent {
 
     private final Client client;
-    private final CloudStorageUploader cloudStorageUploader;
 
     @Value("${choragi.storage.bucket-name}")
     private String bucketName;
@@ -63,9 +61,8 @@ public class CreativeDirectorAgent {
                         .orElse(null);
 
                 if (imageBytes != null) {
-                    // THE FIX: Convert bytes to Base64 and call your exact method name!
-                    String base64Image = Base64.getEncoder().encodeToString(imageBytes);
-                    return cloudStorageUploader.uploadBase64Image(base64Image, artistName);
+                    // THE FIX: Return the raw Base64 string exactly as your AssetGeneratorAgent expects!
+                    return "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes);
                 }
 
             } catch (Exception e) {

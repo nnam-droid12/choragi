@@ -19,8 +19,8 @@ public class ChoragiOrchestrator {
     private final SimpMessagingTemplate messagingTemplate;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public void startAutonomousSequence(String location, String date) {
-        log.info("COMMAND CENTER: Launching autonomous sequence for {} on {}", location, date);
+    public void startAutonomousSequence(String artistName, String location, String date) {
+        log.info("COMMAND CENTER: Launching autonomous sequence for {} in {} on {}", artistName, location, date);
 
         try {
             sendStatusToUI("system", "INITIALIZING CHORAGI PROTOCOL...");
@@ -34,6 +34,7 @@ public class ChoragiOrchestrator {
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> venueLeads = restTemplate.postForObject(venueUrl, Map.of("targetCity", location), List.class);
 
+            // THE FIX: Hardcode your verified Twilio number for the trial account!
             String targetPhone = "+2349162270129";
             String targetVenue = "The Grand Arena";
             List<Map<String, String>> uiVenues = new ArrayList<>();
@@ -45,9 +46,9 @@ public class ChoragiOrchestrator {
                     String phone = (String) lead.getOrDefault("phoneNumber", "UNKNOWN");
                     uiVenues.add(Map.of("name", name, "phone", phone, "address", location));
 
+                    // We grab the dynamic name, but WE DO NOT overwrite the targetPhone anymore!
                     if (i == 0) {
                         targetVenue = name;
-                        if (!phone.equalsIgnoreCase("UNKNOWN") && !phone.isBlank()) targetPhone = phone;
                     }
                 }
                 sendStatusToUI("venue", "SUCCESS", Map.of("venues", uiVenues));
@@ -78,35 +79,34 @@ public class ChoragiOrchestrator {
             // ==========================================
             // 3. CREATIVE DIRECTOR
             // ==========================================
-            sendStatusToUI("creative", "Generating promotional assets...");
+            sendStatusToUI("creative", "Generating promotional assets for " + artistName + "...");
             String creativeUrl = "http://localhost:8082/api/creative/generate";
 
+            Map<String, String> creativeReq = Map.of(
+                    "artistName", artistName,
+                    "location", location,
+                    "date", date
+            );
+
             @SuppressWarnings("unchecked")
-            Map<String, Object> creativeAssets = restTemplate.postForObject(creativeUrl, Map.of("artistName", "Alex Warren", "location", location, "date", date), Map.class);
+            Map<String, Object> creativeAssets = restTemplate.postForObject(creativeUrl, creativeReq, Map.class);
 
-            // LOGGING THE RAW DATA SO YOU CAN SEE WHAT IS ACTUALLY ARRIVING!
-            log.info("RAW CREATIVE RESPONSE: {}", creativeAssets);
-
-            // THE FIX: Smart extraction that checks all possible JSON key variations!
-            String rawPoster = extractValue(creativeAssets, "posterUrl", "poster", "imageUrl", "image");
-            String rawVideo = extractValue(creativeAssets, "videoUrl", "video", "promoVideo");
+            String rawPoster = extractValue(creativeAssets, "posterUrl", "poster", "posterGcsUrl");
+            String rawVideo = extractValue(creativeAssets, "videoUrl", "video", "videoGcsUrl");
 
             String publicPoster = convertToPublicUrl(rawPoster);
             String publicVideo = convertToPublicUrl(rawVideo);
 
-            sendStatusToUI("creative", "SUCCESS", Map.of(
-                    "posterUrl", publicPoster,
-                    "videoUrl", publicVideo
-            ));
+            sendStatusToUI("creative", "SUCCESS", Map.of("posterUrl", publicPoster, "videoUrl", publicVideo));
 
             // ==========================================
             // 4. SITE BUILDER
             // ==========================================
-            sendStatusToUI("website", "Deploying Firebase site...");
+            sendStatusToUI("website", "Deploying site for " + artistName + "...");
             String siteUrl = "http://localhost:8083/api/site/build";
 
             Map<String, String> siteReq = new HashMap<>();
-            siteReq.put("artistName", "Alex Warren");
+            siteReq.put("artistName", artistName);
             siteReq.put("date", date);
             siteReq.put("location", location);
             siteReq.put("posterUrl", publicPoster);
@@ -114,8 +114,17 @@ public class ChoragiOrchestrator {
 
             @SuppressWarnings("unchecked")
             Map<String, Object> siteResponse = restTemplate.postForObject(siteUrl, siteReq, Map.class);
+
+            // Log the response so we can debug if it returns empty!
+            log.info("RAW SITE BUILDER RESPONSE: {}", siteResponse);
+
             String liveUrl = extractValue(siteResponse, "liveUrl", "url", "websiteUrl");
-            if (liveUrl.isEmpty()) liveUrl = "https://nixora-web.web.app";
+
+            // THE FIX: Removed the Nixora fallback. If it fails, it will now safely display an error on the UI.
+            if (liveUrl.isEmpty()) {
+                liveUrl = "ERROR_SITE_DEPLOYMENT_FAILED";
+                log.error("Site Builder did not return a valid URL!");
+            }
 
             sendStatusToUI("website", "SUCCESS", Map.of("url", liveUrl));
 
@@ -124,10 +133,11 @@ public class ChoragiOrchestrator {
             // ==========================================
             sendStatusToUI("promoter", "LAUNCHING", Map.of("status", "Google Ads Engine Online"));
             String promoterUrl = "http://localhost:8084/api/promoter/launch";
-            restTemplate.postForEntity(promoterUrl, Map.of("artistName", "Alex Warren", "websiteUrl", liveUrl), String.class);
+
+            restTemplate.postForEntity(promoterUrl, Map.of("artistName", artistName, "websiteUrl", liveUrl), String.class);
 
             sendStatusToUI("promoter", "SUCCESS", Map.of(
-                    "adTitle", "Alex Warren Live Concert | Get Tickets Now",
+                    "adTitle", artistName + " Live Concert | Get Tickets",
                     "adUrl", liveUrl,
                     "adDesc", "Join the high-energy live music experience in " + location + ". Secure your tickets before they sell out!"
             ));
@@ -139,7 +149,6 @@ public class ChoragiOrchestrator {
         }
     }
 
-    // HELPER: Scans the JSON map for multiple possible keys
     private String extractValue(Map<String, Object> map, String... keys) {
         if (map == null) return "";
         for (String key : keys) {

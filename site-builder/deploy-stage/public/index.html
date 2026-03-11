@@ -1,140 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alex Warren - Live in Austin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wizkid - Live in Concert</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    animation: {
-                        'fade-in-down': 'fadeInDown 1s ease-out 0.5s forwards',
-                    },
-                    keyframes: {
-                        fadeInDown: {
-                            '0%': {
-                                opacity: '0',
-                                transform: 'translateY(-20px)'
-                            },
-                            '100%': {
-                                opacity: '1',
-                                transform: 'translateY(0)'
-                            },
-                        },
-                    },
-                },
-            },
-        };
-    </script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <style>
-        /* A simple style for the initial loading state before React/Tailwind kick in */
-        #root:empty {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        body {
+            background-color: #030712;
+            color: #f3f4f6;
+            margin: 0;
+            padding: 0;
         }
     </style>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body class="bg-black text-gray-300 font-sans">
+<body>
     <div id="root"></div>
-
     <script type="text/babel">
-        function App() {
+        const App = () => {
             return (
-                <div className="min-h-screen bg-zinc-900 flex flex-col items-center justify-center p-4 sm:p-8 space-y-16 text-center overflow-x-hidden">
-                    
-                    <header className="opacity-0 animate-fade-in-down">
-                        <h2 className="text-xl sm:text-2xl font-light tracking-widest text-amber-400 uppercase">
-                            Live In Concert
-                        </h2>
-                        <h1 className="text-6xl sm:text-8xl md:text-9xl font-black tracking-tighter text-white my-2">
-                            ALEX WARREN
-                        </h1>
-                        <p className="text-lg sm:text-xl font-medium tracking-wide text-gray-400">
-                            APRIL 15, 2026 &bull; AUSTIN, TEXAS
-                        </p>
+                <div className="min-h-screen bg-gray-950 text-gray-100 font-sans selection:bg-emerald-500 selection:text-white pb-12">
+                    {/* Header */}
+                    <header className="fixed top-0 w-full z-50 bg-gray-950/80 backdrop-blur-md border-b border-gray-800">
+                        <div className="container mx-auto px-6 py-4 flex justify-between items-center">
+                            <div className="text-xl font-black tracking-widest text-emerald-500 uppercase">
+                                Live 2026
+                            </div>
+                            <button className="bg-emerald-500 hover:bg-emerald-400 text-gray-950 font-bold py-2 px-6 rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(16,185,129,0.4)] hover:shadow-[0_0_25px_rgba(16,185,129,0.6)]">
+                                Tickets
+                            </button>
+                        </div>
                     </header>
 
-                    <section className="w-full">
-                        <video 
-                            src="https://videos.pexels.com/video-files/853825/853825-hd.mp4" 
-                            autoPlay 
-                            muted 
-                            loop 
-                            playsInline 
-                            className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl mb-8"
-                        ></video>
-                    </section>
+                    {/* Main Content */}
+                    <main className="container mx-auto px-4 pt-32 text-center">
+                        {/* Headline */}
+                        <h1 className="text-7xl md:text-9xl font-black mb-8 tracking-tighter bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-500 drop-shadow-2xl">
+                            wizkid
+                        </h1>
+                        
+                        {/* Event Details */}
+                        <div className="flex flex-col md:flex-row justify-center items-center gap-6 md:gap-12 mb-16 text-xl md:text-3xl font-light text-gray-300 bg-gray-900/50 inline-flex py-4 px-8 rounded-2xl border border-gray-800 backdrop-blur-sm">
+                            <div className="flex items-center gap-3">
+                                <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <span className="font-medium tracking-wide">10th of april 2026</span>
+                            </div>
+                            <div className="hidden md:block text-gray-700 text-4xl">•</div>
+                            <div className="flex items-center gap-3">
+                                <svg className="w-8 h-8 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.243-4.243a8 8 0 1111.314 0z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <span className="font-medium tracking-wide">victoria island lagos</span>
+                            </div>
+                        </div>
 
-                    <section className="w-full">
-                        <h3 className="text-3xl font-bold text-white mb-8 tracking-wide">Official Tour Poster</h3>
-                        <img 
-                            src="https://images.unsplash.com/photo-1543321269-9d86d3680958?q=80&w=800&auto=format&fit=crop" 
-                            alt="Concert Poster" 
-                            className="w-full max-w-md mx-auto rounded-lg shadow-2xl mb-8" 
-                        />
-                    </section>
+                        {/* Media Elements */}
+                        <div className="flex flex-col items-center justify-center w-full mb-20 px-4">
+                            <img src="https://storage.googleapis.com/choragi-assets-bucket/posters/wizkid-bc1843b0-58d1-4800-88dc-cf74ec265a0d.png" alt="Concert Poster" className="w-full max-w-md mx-auto rounded-lg shadow-2xl mb-8" />
+                            
+                            <video src="https://storage.googleapis.com/choragi-assets-bucket/videos/17623108824272234023/sample_0.mp4" autoPlay muted loop playsInline className="w-full max-w-2xl mx-auto rounded-lg shadow-2xl mb-8"></video>
+                        </div>
 
-                    <section className="w-full max-w-lg mx-auto bg-zinc-800/50 p-6 sm:p-8 rounded-xl shadow-lg border border-zinc-700">
-                        <h3 className="text-3xl font-bold text-white mb-4 tracking-wide">Register for Tickets</h3>
-                        <p className="text-gray-400 mb-8">Sign up for pre-sale access and be the first to know when tickets go live.</p>
-                        <form className="space-y-6" onSubmit={(e) => e.preventDefault()}>
-                            <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-300 text-left mb-2">Full Name</label>
-                                <input 
-                                    type="text" 
-                                    id="name" 
-                                    name="name" 
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" 
-                                    placeholder="Your Name" 
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-300 text-left mb-2">Email Address</label>
-                                <input 
-                                    type="email" 
-                                    id="email" 
-                                    name="email" 
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" 
-                                    placeholder="you@example.com" 
-                                />
-                            </div>
-                            <div>
-                                <label htmlFor="phone" className="block text-sm font-medium text-gray-300 text-left mb-2">Phone Number</label>
-                                <input 
-                                    type="tel" 
-                                    id="phone" 
-                                    name="phone" 
-                                    className="w-full bg-zinc-900 border border-zinc-700 rounded-md py-2 px-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500" 
-                                    placeholder="(555) 555-5555" 
-                                />
-                            </div>
-                            <div>
-                                <button 
-                                    type="submit" 
-                                    className="w-full bg-amber-500 text-zinc-900 font-bold py-3 px-4 rounded-md hover:bg-amber-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-zinc-800 focus:ring-amber-500 transition-colors duration-300 mt-4"
-                                >
-                                    Notify Me
-                                </button>
-                            </div>
-                        </form>
-                    </section>
+                        {/* Call to Action */}
+                        <div className="max-w-3xl mx-auto bg-gradient-to-b from-gray-900 to-gray-950 p-10 rounded-3xl border border-gray-800 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-emerald-500 to-transparent"></div>
+                            <h2 className="text-4xl font-bold mb-4 text-white">Secure Your Spot</h2>
+                            <p className="text-xl text-gray-400 mb-10">Experience the biggest Afrobeats event of the year. Tickets are selling fast.</p>
+                            <button className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-gray-950 text-2xl font-black py-5 px-16 rounded-2xl transition-all duration-300 transform hover:-translate-y-1 shadow-[0_10px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_40px_rgba(16,185,129,0.5)]">
+                                BUY TICKETS NOW
+                            </button>
+                        </div>
+                    </main>
 
-                    <footer className="py-8 text-center text-gray-500">
-                        <p>&copy; 2024 Alex Warren Music. All Rights Reserved.</p>
+                    {/* Footer */}
+                    <footer className="mt-24 border-t border-gray-900 pt-8 text-center text-gray-600">
+                        <p className="text-sm uppercase tracking-widest">&copy; 2026 wizkid Live. All rights reserved.</p>
                     </footer>
                 </div>
             );
-        }
+        };
 
-        const container = document.getElementById('root');
-        const root = ReactDOM.createRoot(container);
+        const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
     </script>
 </body>
