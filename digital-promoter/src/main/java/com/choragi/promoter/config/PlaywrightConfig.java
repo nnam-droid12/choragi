@@ -6,7 +6,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 public class PlaywrightConfig {
@@ -14,20 +16,32 @@ public class PlaywrightConfig {
     @Bean
     public Page playwrightPage() {
         Playwright playwright = Playwright.create();
-        String currentDir = System.getProperty("user.dir");
+
+        // 1. Detect if we are running in Google Cloud Run
+        boolean isCloudRun = System.getenv("K_SERVICE") != null;
+
+        // 2. Route the profile to /tmp in the cloud (read-only bypass), or current dir locally
+        String currentDir = isCloudRun ? System.getProperty("java.io.tmpdir") : System.getProperty("user.dir");
         Path userDataDir = Paths.get(currentDir, "chrome-profile");
+
+        // 3. Add the mandatory Docker/Linux sandbox bypass arguments
+        List<String> args = new ArrayList<>(Arrays.asList(
+                "--use-fake-ui-for-media-stream",
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu" // Extra stability for headless cloud containers
+        ));
 
         BrowserContext context = playwright.chromium().launchPersistentContext(userDataDir,
                 new BrowserType.LaunchPersistentContextOptions()
-                        .setHeadless(false)
+                        // 4. Force headless mode in the cloud, allow visible mode locally
+                        .setHeadless(isCloudRun)
                         .setViewportSize(1280, 720)
-                        .setChannel("chrome")
-                        .setArgs(java.util.Arrays.asList(
-                                "--use-fake-ui-for-media-stream",
-                                "--disable-blink-features=AutomationControlled"
-                        ))
+                        // Note: Removed .setChannel("chrome") so it uses the safe bundled Chromium
+                        .setArgs(args)
         );
-
 
         Page activePage;
         if (context.pages().isEmpty()) {

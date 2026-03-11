@@ -49,14 +49,16 @@ for SERVICE_DIR in "${!SERVICES[@]}"; do
   rm Dockerfile
 
   # 2. Deploy to Cloud Run and inject variables
-  gcloud run deploy $SERVICE_NAME \
-    --image gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME \
-    --region $GCP_REGION \
-    --platform managed \
-    --port $PORT \
-    --allow-unauthenticated \
-    --set-env-vars="SERVER_PORT=${PORT},GEMINI_API_KEY=${GEMINI_API_KEY},TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID},TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN},TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER},GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY},FIREBASE_TOKEN=${FIREBASE_TOKEN},CHORAGI_WEBSOCKET_URL=${CHORAGI_WEBSOCKET_URL}" \
-    --project=$GCP_PROJECT_ID
+    gcloud run deploy $SERVICE_NAME \
+      --image gcr.io/$GCP_PROJECT_ID/$SERVICE_NAME \
+      --region $GCP_REGION \
+      --platform managed \
+      --port $PORT \
+      --memory 2048Mi \
+      --cpu 2 \
+      --allow-unauthenticated \
+      --set-env-vars="SERVER_PORT=${PORT},GEMINI_API_KEY=${GEMINI_API_KEY},TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID},TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN},TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER},GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY},FIREBASE_TOKEN=${FIREBASE_TOKEN},CHORAGI_WEBSOCKET_URL=${CHORAGI_WEBSOCKET_URL}" \
+      --project=$GCP_PROJECT_ID
 
   echo "✅ $SERVICE_NAME successfully deployed!"
 done

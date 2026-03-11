@@ -8,25 +8,21 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class GenAIConfig {
 
-    @Value("${spring.cloud.gcp.project-id}")
-    private String projectId;
+    // 1. Grab the injected GEMINI_API_KEY from the Cloud Run environment
+    @Value("${GEMINI_API_KEY}")
+    private String geminiApiKey;
 
     @Bean(name = "voiceClient")
     public Client voiceClient() {
         return Client.builder()
-                .project(projectId)
-                .location("us-central1")
-                .vertexAI(true)
+                .apiKey(geminiApiKey)
                 .build();
     }
-
 
     @Bean(name = "textClient")
     public Client textClient() {
         return Client.builder()
-                .project(projectId)
-                .location("global")
-                .vertexAI(true)
+                .apiKey(geminiApiKey)
                 .build();
     }
 }

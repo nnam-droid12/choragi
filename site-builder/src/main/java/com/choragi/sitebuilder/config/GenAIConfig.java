@@ -7,15 +7,14 @@ import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class GenAIConfig {
-    @Value("${spring.cloud.gcp.project-id}")
-    private String projectId;
+
+    @Value("${GEMINI_API_KEY}")
+    private String geminiApiKey;
 
     @Bean
     public Client genAiClient() {
         return Client.builder()
-                .project(projectId)
-                .location("global")
-                .vertexAI(true)
+                .apiKey(geminiApiKey)
                 .build();
     }
 }

@@ -5,7 +5,7 @@ RUN mvn clean package -DskipTests
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
-# Grab the compiled JAR specifically from the creative folder
-COPY --from=build /app/creative-director/target/*.jar app.jar
-EXPOSE 8082
+# Grab the compiled JAR specifically from the venue-finder folder
+COPY --from=build /app/venue-finder/target/*.jar app.jar
+EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "app.jar"]
