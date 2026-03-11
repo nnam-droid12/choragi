@@ -19,7 +19,6 @@ public class ReactCodeGeneratorAgent {
         String safeVideo = (videoUrl != null) ? videoUrl : "";
         String safePoster = (posterUrl != null) ? posterUrl : "";
 
-        // THE FIX: Aggressively structured prompt to prevent AI hallucinations
         String prompt = "Write a complete, single-file React application (using React, ReactDOM, and Babel via CDN) " +
                 "styled with Tailwind CSS. It must be a dark-themed concert landing page. " +
                 "CRITICAL INSTRUCTION 1: The main headline MUST prominently display exactly this artist name: '" + artistName + "'. Do not use any other name. " +
@@ -31,25 +30,36 @@ public class ReactCodeGeneratorAgent {
                 "RETURN ONLY THE RAW HTML CODE. Do not include markdown formatting like ```html.";
 
         GenerateContentConfig config = GenerateContentConfig.builder()
-                .temperature(0.0f) // THE FIX: Temperature 0.0 forces the AI to be strictly literal and stop being "creative" with facts
+                .temperature(0.0f)
                 .build();
 
         try {
-            GenerateContentResponse response = client.models.generateContent(
-                    "gemini-3.1-pro-preview",
-                    prompt,
-                    config
-            );
-
-            String htmlCode = response.text();
-            if (htmlCode != null && htmlCode.startsWith("```html")) {
-                htmlCode = htmlCode.substring(7, htmlCode.length() - 3);
-            }
-            return htmlCode != null ? htmlCode.trim() : "<html><body>Error</body></html>";
-
+            log.info("Attempting code generation with gemini-3.1-pro-preview...");
+            return executeGeneration("gemini-3.1-pro-preview", prompt, config);
         } catch (Exception e) {
-            log.error("Failed to generate React code", e);
-            return "<html><body><h1>Error generating site</h1></body></html>";
+            if (e.getMessage() != null && e.getMessage().contains("429")) {
+                log.warn("Quota limit hit (429) on Pro model! Falling back to Flash model...");
+                try {
+                    return executeGeneration("gemini-2.5-flash", prompt, config);
+                } catch (Exception flashEx) {
+                    log.error("Flash fallback also failed!", flashEx);
+                }
+            } else {
+                log.error("Failed to generate React code", e);
+            }
+            return "<html><body style='background:#111; color:#fff; text-align:center; padding:50px;'><h1>Error generating site layout. Please refresh.</h1></body></html>";
         }
+    }
+
+
+    private String executeGeneration(String modelName, String prompt, GenerateContentConfig config) throws Exception {
+        GenerateContentResponse response = client.models.generateContent(modelName, prompt, config);
+        String htmlCode = response.text();
+        if (htmlCode != null && htmlCode.startsWith("```html")) {
+            htmlCode = htmlCode.substring(7, htmlCode.length() - 3);
+        } else if (htmlCode != null && htmlCode.startsWith("```")) {
+            htmlCode = htmlCode.substring(3, htmlCode.length() - 3);
+        }
+        return htmlCode != null ? htmlCode.trim() : "<html><body>Error</body></html>";
     }
 }

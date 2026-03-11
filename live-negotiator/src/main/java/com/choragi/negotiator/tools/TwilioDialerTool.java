@@ -5,12 +5,11 @@ import com.twilio.rest.api.v2010.account.Call;
 import com.twilio.type.PhoneNumber;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import javax.annotation.PostConstruct;
 
-@Service
+@Component
 @Slf4j
 public class TwilioDialerTool {
 
@@ -21,45 +20,46 @@ public class TwilioDialerTool {
     private String authToken;
 
     @Value("${twilio.phone.number}")
-    private String twilioNumber;
+    private String twilioPhone;
 
     @Value("${choragi.websocket.url}")
     private String websocketUrl;
 
-    public boolean initiateNegotiationCall(String targetVenueNumber, String venueName) {
-        log.info("Choragi Dialer: Waking up and initializing Twilio SDK...");
+    @PostConstruct
+    public void init() {
         Twilio.init(accountSid, authToken);
+        log.info("Choragi Dialer: Waking up and initializing Twilio SDK...");
+    }
 
-        log.info("Choragi Dialer: Placing outbound negotiation call to Venue at {}", targetVenueNumber);
+    // THE FIX: Method signature now perfectly matches your VoiceNegotiatorAgent!
+    public boolean initiateNegotiationCall(String targetPhoneNumber, String venueName) {
+        log.info("Choragi Dialer: Placing outbound negotiation call to {} at {}", venueName, targetPhoneNumber);
+        log.info("Choragi Dialer: Sending TwiML payload with dynamic URL");
 
-        try {
-            String encodedVenue = URLEncoder.encode(venueName, StandardCharsets.UTF_8);
-            String dynamicSocketUrl = websocketUrl + "?venue=" + encodedVenue;
+        // The TwiML tells Twilio to immediately connect the answered call to your AI WebSocket
+        String twiml = "<Response><Connect><Stream url=\"" + websocketUrl + "\"/></Connect></Response>";
 
-            // THE FIX: Added a 1-second pause at the very beginning to prevent the Trial Account crash!
-            String twiml = String.format(
-                    "<Response>" +
-                            "<Pause length=\"1\"/>" +
-                            "<Say>Connecting to the AI agent now.</Say>" +
-                            "<Connect><Stream url=\"%s\" /></Connect>" +
-                            "</Response>",
-                    dynamicSocketUrl
-            );
+        int maxRetries = 3;
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                Call call = Call.creator(
+                        new PhoneNumber(targetPhoneNumber),
+                        new PhoneNumber(twilioPhone),
+                        new com.twilio.type.Twiml(twiml)
+                ).create();
 
-            log.info("Choragi Dialer: Sending TwiML payload with dynamic URL");
+                log.info("Call successfully dispatched to telecom network! Call SID: {}", call.getSid());
+                return true; // Success! Returns true to the Agent.
 
-            Call call = Call.creator(
-                    new PhoneNumber(targetVenueNumber),
-                    new PhoneNumber(twilioNumber),
-                    new com.twilio.type.Twiml(twiml)
-            ).create();
-
-            log.info("Call successfully dispatched to telecom network! Call SID: {}", call.getSid());
-            return true;
-
-        } catch (Exception e) {
-            log.error("Choragi Dialer: Failed to dispatch outbound call. Error: {}", e.getMessage(), e);
-            return false;
+            } catch (Exception e) {
+                log.error("Choragi Dialer: Failed to dispatch outbound call (Attempt {}). Error: {}", attempt, e.getMessage());
+                if (attempt == maxRetries) {
+                    log.error("Max retries reached. Call failed completely.");
+                } else {
+                    try { Thread.sleep(2000); } catch (InterruptedException ignored) {} // Wait 2 seconds and retry
+                }
+            }
         }
+        return false;
     }
 }
