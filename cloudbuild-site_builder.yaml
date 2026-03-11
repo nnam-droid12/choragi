@@ -1,0 +1,22 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/site-builder', '-f', 'Dockerfile.site_builder', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/site-builder']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'site-builder'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/site-builder'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '8083'
+      - '--allow-unauthenticated'
+images:
+  - 'gcr.io/$PROJECT_ID/site-builder'

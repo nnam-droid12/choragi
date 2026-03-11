@@ -1,0 +1,16 @@
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+COPY . .
+RUN mvn clean package -DskipTests
+
+# We use a slightly different base image here because Site Builder needs Firebase CLI!
+FROM node:18-alpine
+WORKDIR /app
+
+# Install Java and Firebase CLI in this container
+RUN apk add --no-cache openjdk17-jre
+RUN npm install -g firebase-tools
+
+COPY --from=build /app/sitebuilder/target/*.jar app.jar
+EXPOSE 8083
+ENTRYPOINT ["java", "-jar", "app.jar"]

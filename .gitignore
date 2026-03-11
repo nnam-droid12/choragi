@@ -47,3 +47,4 @@ venue-finder/src/main/resources/application.yml
 live-negotiator/src/main/resources/application.yml
 creative-director/src/main/resources/application.yml
 digital-promoter/chrome-profile
+.env

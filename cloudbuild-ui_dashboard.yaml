@@ -1,0 +1,22 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/ui-client', '-f', 'Dockerfile.ui_dashboard', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/ui-client']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'ui-client'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/ui-client'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '8000'
+      - '--allow-unauthenticated'
+images:
+  - 'gcr.io/$PROJECT_ID/ui-client'

@@ -1,0 +1,15 @@
+# Build Stage
+FROM maven:3.9-eclipse-temurin-17 AS build
+WORKDIR /app
+# Copy the master pom and all microservice folders
+COPY . .
+# Package the entire multi-module project
+RUN mvn clean package -DskipTests
+
+# Run Stage
+FROM eclipse-temurin:17-jre-alpine
+WORKDIR /app
+# Grab the compiled JAR specifically from the ui-client target folder
+COPY --from=build /app/ui-client/target/*.jar app.jar
+EXPOSE 8000
+ENTRYPOINT ["java", "-jar", "app.jar"]

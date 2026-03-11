@@ -1,0 +1,22 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/creative-director', '-f', 'Dockerfile.creative_director', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/creative-director']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'creative-director'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/creative-director'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '8082'
+      - '--allow-unauthenticated'
+images:
+  - 'gcr.io/$PROJECT_ID/creative-director'

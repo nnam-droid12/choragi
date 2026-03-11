@@ -1,0 +1,22 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/digital-promoter', '-f', 'Dockerfile.digital_promoter', '.']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/digital-promoter']
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'digital-promoter'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/digital-promoter'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--port'
+      - '8084'
+      - '--allow-unauthenticated'
+images:
+  - 'gcr.io/$PROJECT_ID/digital-promoter'
