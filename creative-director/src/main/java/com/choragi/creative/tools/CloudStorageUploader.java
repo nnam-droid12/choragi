@@ -15,7 +15,7 @@ import java.util.UUID;
 @Slf4j
 public class CloudStorageUploader {
 
-    @Value("${choragi.storage.bucket-name}")
+    @Value("${choragi.storage.bucket-name:choragi-assets-bucket}")
     private String bucketName;
 
     public String uploadBase64Image(String base64Image, String artistName) {

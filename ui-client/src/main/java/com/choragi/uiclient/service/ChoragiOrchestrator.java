@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @Slf4j
@@ -19,7 +20,19 @@ public class ChoragiOrchestrator {
     private final SimpMessagingTemplate messagingTemplate;
     private final RestTemplate restTemplate = new RestTemplate();
 
+    // THE FIX: The Kill Switch! This flag tracks if the sequence is allowed to continue.
+    private final AtomicBoolean isRunning = new AtomicBoolean(false);
+
+    // Call this method to halt the entire sequence
+    public void stopAutonomousSequence() {
+        log.info("COMMAND CENTER: Abort signal received! Halting sequence.");
+        isRunning.set(false);
+        sendStatusToUI("system", "ABORTED: Sequence halted by user.");
+    }
+
     public void startAutonomousSequence(String artistName, String location, String date) {
+        // Turn the engine on
+        isRunning.set(true);
         log.info("COMMAND CENTER: Launching autonomous sequence for {} in {} on {}", artistName, location, date);
 
         try {
@@ -28,13 +41,15 @@ public class ChoragiOrchestrator {
             // ==========================================
             // 1. VENUE SCOUT
             // ==========================================
+            if (!isRunning.get()) return; // Check the kill switch before starting
+
             sendStatusToUI("venue", "Scouting available venues in " + location + " for " + date + "...");
-            String venueUrl = "http://localhost:8081/api/scout";
+            // REPLACED LOCALHOST WITH LIVE URL
+            String venueUrl = "https://venue-finder-4j2p5vomta-uc.a.run.app/api/scout";
 
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> venueLeads = restTemplate.postForObject(venueUrl, Map.of("targetCity", location), List.class);
 
-            // THE FIX: Hardcode your verified Twilio number for the trial account!
             String targetPhone = "+2349162270129";
             String targetVenue = "The Grand Arena";
             List<Map<String, String>> uiVenues = new ArrayList<>();
@@ -46,7 +61,6 @@ public class ChoragiOrchestrator {
                     String phone = (String) lead.getOrDefault("phoneNumber", "UNKNOWN");
                     uiVenues.add(Map.of("name", name, "phone", phone, "address", location));
 
-                    // We grab the dynamic name, but WE DO NOT overwrite the targetPhone anymore!
                     if (i == 0) {
                         targetVenue = name;
                     }
@@ -59,9 +73,12 @@ public class ChoragiOrchestrator {
             // ==========================================
             // 2. LIVE NEGOTIATOR
             // ==========================================
+            if (!isRunning.get()) return; // Check the kill switch
+
             sendStatusToUI("negotiator", "DIALING", Map.of("phone", targetPhone, "venue", targetVenue));
 
-            String negotiatorUrl = "http://localhost:8080/api/negotiation/start";
+            // REPLACED LOCALHOST WITH LIVE URL
+            String negotiatorUrl = "https://live-negotiator-4j2p5vomta-uc.a.run.app/api/negotiation/start";
             try {
                 restTemplate.postForEntity(negotiatorUrl, Map.of("venueName", targetVenue, "phoneNumber", targetPhone), String.class);
 
@@ -79,8 +96,11 @@ public class ChoragiOrchestrator {
             // ==========================================
             // 3. CREATIVE DIRECTOR
             // ==========================================
+            if (!isRunning.get()) return; // Check the kill switch
+
             sendStatusToUI("creative", "Generating promotional assets for " + artistName + "...");
-            String creativeUrl = "http://localhost:8082/api/creative/generate";
+            // REPLACED LOCALHOST WITH LIVE URL
+            String creativeUrl = "https://creative-director-4j2p5vomta-uc.a.run.app/api/creative/generate";
 
             Map<String, String> creativeReq = Map.of(
                     "artistName", artistName,
@@ -102,8 +122,11 @@ public class ChoragiOrchestrator {
             // ==========================================
             // 4. SITE BUILDER
             // ==========================================
+            if (!isRunning.get()) return; // Check the kill switch
+
             sendStatusToUI("website", "Deploying site for " + artistName + "...");
-            String siteUrl = "http://localhost:8083/api/site/build";
+            // REPLACED LOCALHOST WITH LIVE URL
+            String siteUrl = "https://site-builder-4j2p5vomta-uc.a.run.app/api/site/build";
 
             Map<String, String> siteReq = new HashMap<>();
             siteReq.put("artistName", artistName);
@@ -115,12 +138,10 @@ public class ChoragiOrchestrator {
             @SuppressWarnings("unchecked")
             Map<String, Object> siteResponse = restTemplate.postForObject(siteUrl, siteReq, Map.class);
 
-            // Log the response so we can debug if it returns empty!
             log.info("RAW SITE BUILDER RESPONSE: {}", siteResponse);
 
             String liveUrl = extractValue(siteResponse, "liveUrl", "url", "websiteUrl");
 
-            // THE FIX: Removed the Nixora fallback. If it fails, it will now safely display an error on the UI.
             if (liveUrl.isEmpty()) {
                 liveUrl = "ERROR_SITE_DEPLOYMENT_FAILED";
                 log.error("Site Builder did not return a valid URL!");
@@ -131,8 +152,11 @@ public class ChoragiOrchestrator {
             // ==========================================
             // 5. DIGITAL PROMOTER
             // ==========================================
+            if (!isRunning.get()) return; // Check the kill switch
+
             sendStatusToUI("promoter", "LAUNCHING", Map.of("status", "Google Ads Engine Online"));
-            String promoterUrl = "http://localhost:8084/api/promoter/launch";
+            // REPLACED LOCALHOST WITH LIVE URL
+            String promoterUrl = "https://digital-promoter-4j2p5vomta-uc.a.run.app/api/promoter/launch";
 
             restTemplate.postForEntity(promoterUrl, Map.of("artistName", artistName, "websiteUrl", liveUrl), String.class);
 
@@ -146,6 +170,10 @@ public class ChoragiOrchestrator {
 
         } catch (Exception e) {
             log.error("Sequence failed!", e);
+            sendStatusToUI("system", "ERROR: " + e.getMessage());
+        } finally {
+            // Always ensure the flag resets when the sequence finishes (or fails)
+            isRunning.set(false);
         }
     }
 

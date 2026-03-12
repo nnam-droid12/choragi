@@ -8,7 +8,7 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class GenAIConfig {
 
-    @Value("${GEMINI_API_KEY}")
+    @Value("${GEMINI_API_KEY:missing_key}")
     private String geminiApiKey;
 
     @Bean

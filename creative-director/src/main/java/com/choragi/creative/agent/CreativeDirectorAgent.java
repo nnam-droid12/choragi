@@ -2,8 +2,8 @@ package com.choragi.creative.agent;
 
 import com.google.genai.Client;
 import com.google.genai.types.*;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,13 +14,19 @@ import java.util.List;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class CreativeDirectorAgent {
 
     private final Client client;
 
-    @Value("${choragi.storage.bucket-name}")
+
+    @Value("${choragi.storage.bucket-name:choragi-assets-bucket}")
     private String bucketName;
+
+
+    @Autowired
+    public CreativeDirectorAgent(Client client) {
+        this.client = client;
+    }
 
     public String generateTourPoster(String artistName, String theme, String date, String location) {
         log.info("Choragi Creative: Designing poster for {}...", artistName);
@@ -39,7 +45,7 @@ public class CreativeDirectorAgent {
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                log.info("Generating with Nano Banana 2 (Attempt {})...", attempt);
+                log.info("Generating with Gemini Flash Image (Attempt {})...", attempt);
                 GenerateContentResponse response = client.models.generateContent(
                         "gemini-2.5-flash-image",
                         Content.builder().role("user").parts(Collections.singletonList(
@@ -61,7 +67,6 @@ public class CreativeDirectorAgent {
                         .orElse(null);
 
                 if (imageBytes != null) {
-                    // THE FIX: Return the raw Base64 string exactly as your AssetGeneratorAgent expects!
                     return "data:image/png;base64," + Base64.getEncoder().encodeToString(imageBytes);
                 }
 
