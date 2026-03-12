@@ -18,7 +18,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-
-        registry.addEndpoint("/choragi-live").withSockJS();
+        registry.addEndpoint("/choragi-live")
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 }
