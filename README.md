@@ -8,6 +8,12 @@ Choragi is an autonomous event management platform that **finds, books, and prom
 
 ## 🏗️ Architecture
 
+<img
+src="https://res.cloudinary.com/william-crm4/image/upload/v1773396916/choragi-architectural-diagram_hu7jq5.png"
+alt="Choragi System Architecture"
+width="1000"
+/>
+
 Choragi consists of 6 specialized microservices working together in Google Cloud:
 
 ### Core Services
@@ -133,7 +139,7 @@ Each service contains a standard `Dockerfile` optimized for Cloud Run:
 ~~~dockerfile
 # Build specific service
 docker build -t choragi-ui-client ./ui-client
-docker build -t choragi-negotiator ./live-negotiator
+docker build -t choragi-live-negotiator ./live-negotiator
 ~~~
 
 ## 🔐 Security & Privacy
