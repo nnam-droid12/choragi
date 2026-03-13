@@ -2,15 +2,20 @@ package com.choragi.creative.agent;
 
 import com.google.genai.Client;
 import com.google.genai.types.*;
+import com.google.auth.oauth2.GoogleCredentials;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -18,10 +23,8 @@ public class CreativeDirectorAgent {
 
     private final Client client;
 
-
     @Value("${choragi.storage.bucket-name:choragi-assets-bucket}")
     private String bucketName;
-
 
     @Autowired
     public CreativeDirectorAgent(Client client) {
@@ -54,7 +57,6 @@ public class CreativeDirectorAgent {
                         config
                 );
 
-                // Extract the raw image bytes
                 byte[] imageBytes = response.candidates().orElse(Collections.emptyList()).stream()
                         .map(c -> c.content().orElse(null))
                         .filter(content -> content != null)
@@ -87,62 +89,95 @@ public class CreativeDirectorAgent {
     public String generatePromoVideo(String artistName, String theme, String date, String location) {
         log.info("Choragi Creative: Directing promo video ad for {} at {}...", artistName, location);
 
-        String safeTheme = theme.replaceAll("(?i)psychedelic", "retro kaleidoscope");
+        String safeTheme = theme != null ? theme.replaceAll("(?i)psychedelic", "retro kaleidoscope") : "cinematic";
         String uniqueId = java.util.UUID.randomUUID().toString().substring(0, 8);
 
         String videoPrompt = String.format(
-                "[Unique Sequence: %s] Cinematic music video of a live rock band performing on a massive concert stage. " +
-                        "A lead singer is passionately holding a microphone, a guitarist is playing an electric guitar, and a drummer is playing a drum set. " +
-                        "Vibrant neon stage lights and sweeping lasers illuminating a huge, energetic cheering crowd. " +
+                "[Unique Sequence: %s] Cinematic music video of a massive concert stage. " +
+                        "Vibrant neon stage lights, smoke machines, and sweeping lasers illuminating empty microphone stands and a glowing drum set. " +
                         "Visual theme: %s. 4k resolution, photorealistic, highly detailed.",
                 uniqueId, safeTheme);
 
-        String gcsOutput = "gs://" + bucketName + "/videos/";
-
         try {
-            log.info("Sending video ad request to Veo...");
+            log.info("Sending video request directly to Vertex AI Veo 3.0 Fast...");
 
-            com.google.genai.types.GenerateVideosOperation operation = client.models.generateVideos(
-                    "veo-3.1-generate-preview",
-                    com.google.genai.types.GenerateVideosSource.builder().prompt(videoPrompt).build(),
-                    com.google.genai.types.GenerateVideosConfig.builder()
-                            .aspectRatio("16:9")
-                            .personGeneration("allow_adult")
-                            .outputGcsUri(gcsOutput)
-                            .generateAudio(true)
-                            .build()
-            );
+            // 1. Get Google Cloud Auth Token
+            GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+                    .createScoped(Collections.singletonList("https://www.googleapis.com/auth/cloud-platform"));
+            credentials.refreshIfExpired();
+            String token = credentials.getAccessToken().getTokenValue();
 
-            log.info("Video ad is generating with audio. Polling for completion...");
+            RestTemplate restTemplate = new RestTemplate();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(token);
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
-            while (!operation.done().orElse(false)) {
-                java.util.concurrent.TimeUnit.SECONDS.sleep(15);
-                operation = client.operations.getVideosOperation(operation, null);
-                log.info("Still generating video ad...");
+            // 2. Dynamically grab your true Project ID (defaults to nixora-project if running locally without env vars)
+            String projectId = System.getenv("GOOGLE_CLOUD_PROJECT");
+            if (projectId == null || projectId.isEmpty()) {
+                projectId = "nixora-project";
             }
 
-            if (operation.error().isPresent()) {
-                Object errorObj = operation.error().get();
-                log.error("Veo Render Failed! Google Cloud Reason: {}", errorObj.toString());
+            // 3. Use the exact Veo 3.0 Fast URL
+            String url = "https://us-central1-aiplatform.googleapis.com/v1/projects/" + projectId + "/locations/us-central1/publishers/google/models/veo-3.0-fast-generate-001:predictLongRunning";
+            String gcsUri = "gs://" + bucketName + "/promo_" + uniqueId + ".mp4";
+
+            // 4. Construct the exact JSON Body mandated by the Vertex AI docs
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("instances", Collections.singletonList(Collections.singletonMap("prompt", videoPrompt)));
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("storageUri", gcsUri);
+            params.put("sampleCount", 1);
+            params.put("aspectRatio", "16:9");
+            params.put("resolution", "720p");
+            params.put("durationSeconds", 4); // Required for Veo 3
+            params.put("generateAudio", false); // Required for Veo 3
+
+            requestBody.put("parameters", params);
+
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
+
+            // 5. Fire the REST Request
+            log.info("Starting Veo 3.0 Fast Operation on Project: {}", projectId);
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, entity, Map.class);
+
+            if (response.getBody() == null || !response.getBody().containsKey("name")) {
+                log.error("Failed to get Operation Name from Vertex API.");
                 return "VIDEO_ERROR_FALLBACK";
             }
 
-            String generatedVideoUri = operation.response()
-                    .flatMap(com.google.genai.types.GenerateVideosResponse::generatedVideos)
-                    .flatMap(videos -> videos.stream().findFirst())
-                    .flatMap(com.google.genai.types.GeneratedVideo::video)
-                    .flatMap(com.google.genai.types.Video::uri)
-                    .orElse("NO_VIDEO_GENERATED");
+            String operationName = response.getBody().get("name").toString();
+            String pollUrl = "https://us-central1-aiplatform.googleapis.com/v1/" + operationName;
 
-            log.info("Video ad generation complete: {}", generatedVideoUri);
+            log.info("Operation started: {}. Polling every 15 seconds...", operationName);
 
-            if (generatedVideoUri.startsWith("gs://")) {
-                return generatedVideoUri.replace("gs://", "https://storage.googleapis.com/");
+            // 6. Poll for completion
+            while (true) {
+                Thread.sleep(15000);
+                ResponseEntity<Map> pollResp = restTemplate.exchange(pollUrl, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+
+                if (pollResp.getBody() != null) {
+                    Boolean done = (Boolean) pollResp.getBody().get("done");
+                    if (Boolean.TRUE.equals(done)) {
+                        if (pollResp.getBody().containsKey("error")) {
+                            log.error("Vertex Veo Failed during processing: {}", pollResp.getBody().get("error"));
+                            return "VIDEO_ERROR_FALLBACK";
+                        }
+                        log.info("Video Generation Complete!");
+                        break;
+                    }
+                }
             }
-            return generatedVideoUri;
 
+            return "https://storage.googleapis.com/" + bucketName + "/promo_" + uniqueId + ".mp4";
+
+        } catch (org.springframework.web.client.HttpStatusCodeException e) {
+            // THE CRITICAL FIX: If Google rejects it, print the exact reason to the logs!
+            log.error("VERTEX AI REJECTED THE REQUEST. Status: {} - Body: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            return "VIDEO_ERROR_FALLBACK";
         } catch (Exception e) {
-            log.error("Creative Director: Video ad generation failed", e);
+            log.error("Creative Director Error: {}", e.getMessage(), e);
             return "VIDEO_ERROR_FALLBACK";
         }
     }

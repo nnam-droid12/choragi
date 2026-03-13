@@ -27,7 +27,6 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
     private final Client client;
     private final ObjectMapper mapper = new ObjectMapper();
 
-
     public VoiceStreamHandler(@Qualifier("voiceClient") Client client) {
         this.client = client;
     }
@@ -35,20 +34,31 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         JsonNode json = mapper.readTree(message.getPayload());
+
+        if (!json.has("event")) {
+            return;
+        }
+
         String event = json.get("event").asText();
 
         switch (event) {
+            case "connected":
+                log.info("Twilio WebSocket connected successfully. Waiting for start signal...");
+                break;
+
+            case "stop":
+                log.info("Twilio stream stopped by the caller.");
+                break;
+
             case "start":
                 String streamSid = json.get("start").get("streamSid").asText();
                 log.info("Choragi Voice: Connecting to Gemini Live for stream: {}", streamSid);
 
-                // DYNAMIC VENUE EXTRACTION: Read the venue name from the Twilio URL
                 String targetVenue = "your venue";
                 if (session.getUri() != null && session.getUri().getQuery() != null) {
                     String query = session.getUri().getQuery();
                     if (query.contains("venue=")) {
                         targetVenue = URLDecoder.decode(query.split("venue=")[1].split("&")[0], StandardCharsets.UTF_8);
-                        log.info("Successfully extracted dynamic venue name: {}", targetVenue);
                     }
                 }
 
@@ -56,8 +66,7 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                 session.getAttributes().put("silenceCount", 0);
                 session.getAttributes().put("hasSpoken", false);
 
-                // STRICTLY USING GEMINI 2.5 NATIVE AUDIO
-                String modelId = "gemini-live-2.5-flash-native-audio";
+                String modelId = "gemini-2.5-flash-native-audio-preview-12-2025";
 
                 LiveConnectConfig connectConfig = LiveConnectConfig.builder()
                         .responseModalities(com.google.genai.types.Modality.Known.AUDIO)
@@ -70,43 +79,49 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                                         "4. ENDING: Once they explain the booking process, say exactly: 'Okay, thank you. I will get back to you.' and stop talking.")))
                         .build();
 
-                String finalTargetVenue = targetVenue; // Required for lambda
-                client.async.live.connect(modelId, connectConfig)
-                        .thenAccept(geminiSession -> {
-                            session.getAttributes().put("geminiSession", geminiSession);
-                            session.getAttributes().put("streamSid", streamSid);
+                String finalTargetVenue = targetVenue;
 
-                            try {
-                                Method clientMethod = geminiSession.getClass().getMethod("sendClientContent", LiveSendClientContentParameters.class);
-                                session.getAttributes().put("clientContentMethod", clientMethod);
+                try {
+                    client.async.live.connect(modelId, connectConfig)
+                            .thenAccept(geminiSession -> {
+                                session.getAttributes().put("geminiSession", geminiSession);
+                                session.getAttributes().put("streamSid", streamSid);
 
+                                try {
+                                    Method clientMethod = geminiSession.getClass().getMethod("sendClientContent", LiveSendClientContentParameters.class);
+                                    session.getAttributes().put("clientContentMethod", clientMethod);
 
-                                String greetingPrompt = String.format("Please start the call by saying exactly: 'Hello, I am calling from Choragi. We are looking to book a music concert space at %s. Do you have any space available?'", finalTargetVenue);
+                                    String greetingPrompt = String.format("Please start the call by saying exactly: 'Hello, I am calling from Choragi. We are looking to book a music concert space at %s. Do you have any space available?'", finalTargetVenue);
 
-                                LiveSendClientContentParameters nudgeParams = LiveSendClientContentParameters.builder()
-                                        .turns(Arrays.asList(Content.builder()
-                                                .role("user")
-                                                .parts(Arrays.asList(Part.fromText(greetingPrompt)))
-                                                .build()))
-                                        .turnComplete(true)
-                                        .build();
-                                clientMethod.invoke(geminiSession, nudgeParams);
-                                log.info("Outbound greeting nudge sent successfully.");
-                            } catch (Exception e) {
-                                log.warn("Failed to setup connection.", e);
-                            }
+                                    LiveSendClientContentParameters nudgeParams = LiveSendClientContentParameters.builder()
+                                            .turns(Arrays.asList(Content.builder()
+                                                    .role("user")
+                                                    .parts(Arrays.asList(Part.fromText(greetingPrompt)))
+                                                    .build()))
+                                            .turnComplete(true)
+                                            .build();
+                                    clientMethod.invoke(geminiSession, nudgeParams);
+                                    log.info("Outbound greeting nudge sent successfully.");
+                                } catch (Exception e) {
+                                    log.warn("Failed to setup connection parameters.", e);
+                                }
 
-                            try {
-                                geminiSession.getClass().getMethod("receive", java.util.function.Consumer.class)
-                                        .invoke(geminiSession, (java.util.function.Consumer<Object>) msg -> {
-                                            handleGeminiResponse(session, msg);
-                                        });
-                            } catch (Exception e) {
-                                log.error("Failed to register choragi listener", e);
-                            }
-
-                            log.info("Choragi Voice: Gemini Live Session Established.");
-                        });
+                                try {
+                                    geminiSession.getClass().getMethod("receive", java.util.function.Consumer.class)
+                                            .invoke(geminiSession, (java.util.function.Consumer<Object>) msg -> {
+                                                handleGeminiResponse(session, msg);
+                                            });
+                                } catch (Exception e) {
+                                    log.error("Failed to register choragi listener", e);
+                                }
+                            })
+                            .exceptionally(ex -> {
+                                log.error("Gemini API Async Connection Failed: {}", ex.getMessage());
+                                return null;
+                            });
+                } catch (Exception e) {
+                    log.error("Fatal error attempting to connect to Gemini API: {}", e.getMessage());
+                }
                 break;
 
             case "media":
@@ -127,8 +142,8 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
 
                     double rms = calculateRMS(pcmAudio);
 
-
-                    if (rms > 800) {
+                    // THE FIX: Dropped from 50 to 10 so it actually triggers when you speak!
+                    if (rms > 10) {
                         session.getAttributes().put("hasSpoken", true);
                         session.getAttributes().put("silenceCount", 0);
                     } else {
@@ -146,6 +161,7 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                             byte[] sentenceAudio = audioBuffer.toByteArray();
 
                             try {
+                                log.info("🗣️ User finished speaking. Sending {} bytes to Gemini...", sentenceAudio.length);
                                 LiveSendClientContentParameters audioParams = LiveSendClientContentParameters.builder()
                                         .turns(Arrays.asList(Content.builder()
                                                 .role("user")
@@ -160,9 +176,9 @@ public class VoiceStreamHandler extends TextWebSocketHandler {
                                         .build();
 
                                 clientContentMethod.invoke(activeSession, audioParams);
-                                log.info("VAD: Chunk sent (Size: {} bytes). Trigger: {}", sentenceAudio.length, isBufferFull ? "Max Time" : "Silence");
                             } catch (Exception e) {
-                                log.debug("Failed to send buffered audio.");
+                                // THE FIX: Show the exact error if the SDK rejects the audio!
+                                log.error("CRITICAL: Failed to send audio to Gemini Live API: {}", e.getMessage(), e);
                             }
                         }
 

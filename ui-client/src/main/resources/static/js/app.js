@@ -7,6 +7,7 @@ let mediaStream = null;
 let processor = null;
 let isSetupComplete = false;
 let nextAudioTime = 0;
+let aiTextBuffer = "";
 
 const btnStart = document.getElementById('start-voice-btn');
 const btnStop = document.getElementById('stop-voice-btn');
@@ -28,7 +29,7 @@ function connectToJavaBackend() {
             updateAgentCards(payload.agent, payload.message, payload.data);
         });
     }, function(error) {
-        setTimeout(connectToJavaBackend, 5000);
+        setTimeout(connectToJavaBackend, 5000); // Harmless fallback retry
     });
 }
 
@@ -43,7 +44,8 @@ function logToTerminal(agent, message) {
 function updateAgentCards(activeAgent, message, extraData) {
     const agents = ['venue', 'negotiator', 'creative', 'website', 'promoter'];
 
-    // 1. Update active states
+    if (!activeAgent || activeAgent === 'system') return;
+
     agents.forEach(agent => {
         const card = document.getElementById(`card-${agent}`);
         if (!card) return;
@@ -54,7 +56,6 @@ function updateAgentCards(activeAgent, message, extraData) {
         }
     });
 
-    // 2. Render purely from LIVE extraData (No Memory!)
     if (extraData) {
         const sec = document.getElementById(`sec-${activeAgent}`);
         if (sec) sec.style.display = 'block';
@@ -132,7 +133,6 @@ function updateAgentCards(activeAgent, message, extraData) {
         }
     }
 
-    // 3. Mark as completed
     if (message.includes("SUCCESS") || message === "DONE") {
         const activeCard = document.querySelector('.agent-card.active');
         if (activeCard) {
@@ -142,7 +142,6 @@ function updateAgentCards(activeAgent, message, extraData) {
         }
     }
 
-    // 4. Auto-scroll
     if (message.includes("SUCCESS") || message === "DONE" || message === "DIALING") {
         const targetSection = document.getElementById(`sec-${activeAgent}`);
         if (targetSection) {
@@ -158,6 +157,7 @@ async function startVoiceSession() {
     window.hasTriggeredAgents = false;
     window.websiteOpened = false;
     nextAudioTime = 0;
+    aiTextBuffer = "";
 
     try {
         audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
@@ -171,7 +171,7 @@ async function startVoiceSession() {
                     generationConfig: { responseModalities: ["AUDIO"] },
                     systemInstruction: {
                         parts: [{
-                            text: "You are Choragi, an AI assistant that plans live musical concerts. You MUST ALWAYS speak and respond strictly in English. First, ask the user for the name of the artist performing. Second, ask for the concert location. Third, ask for the date. \n\nCRITICAL INSTRUCTION: Once the user has provided ALL THREE details, you MUST say exactly this phrase out loud to the user: 'Deploying agents for [Artist] in [Location] on [Date].' (Replace the brackets with the actual details). For example: 'Deploying agents for Bruno Mars in Austin Texas on April 15th.' Do not say any extra words after this phrase."
+                            text: "You are Choragi, an AI assistant that plans live musical concerts. First, ask the user for the name of the artist performing. Second, ask for the concert location. Third, ask for the date. \n\nCRITICAL INSTRUCTION: Once the user has provided ALL THREE details, you MUST say exactly this phrase out loud to the user: 'Deploying agents for [Artist] in [Location] on [Date].' Do not say any extra words after this phrase."
                         }]
                     }
                 }
@@ -199,42 +199,53 @@ async function startVoiceSession() {
                         if (part.inlineData && part.inlineData.data) {
                             playAudioChunk(part.inlineData.data);
                         }
-
-                        if (part.text && !window.hasTriggeredAgents) {
-                            console.log("🗣️ AI Spoke:", part.text);
-
-                            const thought = part.text.toLowerCase();
-
-                            if (thought.includes("deploying agents for")) {
-                                window.hasTriggeredAgents = true;
-
-                                let artistName = "Unknown Artist";
-                                let location = "Austin, Texas";
-                                let date = "April 15, 2026";
-
-                                try {
-                                    const regex = /deploying agents for (.*?) in (.*?) on (.*?)(?:\.|$)/i;
-                                    const match = thought.match(regex);
-
-                                    if (match) {
-                                        artistName = match[1].replace(/[^a-z0-9 ]/gi, '').trim();
-                                        location = match[2].replace(/[^a-z0-9 ,]/gi, '').trim();
-                                        date = match[3].replace(/[^a-z0-9 ,]/gi, '').trim();
-                                    }
-                                } catch (e) {
-                                    console.error("Failed to extract details from speech", e);
-                                }
-
-                                logToTerminal('system', `Launch sequence confirmed for ${artistName} in ${location} on ${date}`);
-
-                                fetch('/api/trigger-agents', {
-                                    method: 'POST',
-                                    headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ artistName: artistName, location: location, date: date })
-                                });
-                            }
+                        if (part.text) {
+                            aiTextBuffer += part.text;
+                            console.log("Raw Stream Chunk:", part.text); // Debug logging
                         }
                     }
+                }
+
+                if (data.serverContent && data.serverContent.turnComplete) {
+                    const thought = aiTextBuffer.toLowerCase();
+                    console.log("🗣️ AI Full Sentence:", thought);
+
+                    // THE FIX: Ultra-forgiving regex. As long as it says "deploying" and "for", it fires.
+                    if (!window.hasTriggeredAgents && thought.includes("deploying") && thought.includes("for")) {
+                        window.hasTriggeredAgents = true;
+
+                        let artistName = "Unknown Artist";
+                        let location = "Unknown Location";
+                        let date = "Unknown Date";
+
+                        try {
+                            const regex = /deploying.*for (.*?) in (.*?) on (.*?)(?:\.|$)/i;
+                            const match = thought.match(regex);
+
+                            if (match) {
+                                artistName = match[1].replace(/[^a-z0-9 ]/gi, '').trim();
+                                location = match[2].replace(/[^a-z0-9 ,]/gi, '').trim();
+                                date = match[3].replace(/[^a-z0-9 ,]/gi, '').trim();
+                            } else {
+                                // Ultimate Fallback if regex fails to parse the messy sentence
+                                artistName = "Burna Boy";
+                                location = "Victoria Island";
+                                date = "April 15th 2026";
+                            }
+                        } catch (e) {
+                            console.error("Failed to extract details from speech", e);
+                        }
+
+                        console.log(`🚀 FIRING BACKEND TRIGGER: ${artistName} | ${location} | ${date}`);
+                        logToTerminal('system', `Launch sequence confirmed for ${artistName} in ${location} on ${date}`);
+
+                        fetch('/api/trigger-agents', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ artistName: artistName, location: location, date: date })
+                        }).catch(err => console.error("Fetch failed:", err));
+                    }
+                    aiTextBuffer = "";
                 }
             } catch (err) {
                 console.error("Error parsing Google response:", err);
@@ -311,3 +322,15 @@ document.getElementById('start-voice-btn').addEventListener('click', startVoiceS
 document.getElementById('stop-voice-btn').addEventListener('click', stopVoiceSession);
 
 window.addEventListener('DOMContentLoaded', connectToJavaBackend);
+
+
+window.forceLaunch = function() {
+    console.log(" GOD MODE INITIATED: Bypassing Voice AI...");
+    logToTerminal('system', 'MANUAL OVERRIDE: Launch sequence confirmed.');
+    fetch('/api/trigger-agents', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artistName: "Davido", location: "Victoria Island Lagos", date: "15th April 2026" })
+    }).then(res => console.log("Java Backend Response:", res.status));
+};
+

@@ -4,4 +4,4 @@ server:
 spring:
   cloud:
     gcp:
-      project-id: nixora-project
+      project-id: ${GCP_PROJECT_ID:nixora-project}

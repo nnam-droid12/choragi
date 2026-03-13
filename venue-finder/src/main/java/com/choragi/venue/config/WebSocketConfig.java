@@ -17,6 +17,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
 
-        registry.addHandler(voiceStreamHandler, "/voice-stream").setAllowedOrigins("*");
+        registry.addHandler(voiceStreamHandler, "/voice-stream")
+                .setAllowedOriginPatterns("*");
     }
 }

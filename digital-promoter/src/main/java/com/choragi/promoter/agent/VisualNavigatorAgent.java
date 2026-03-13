@@ -34,7 +34,7 @@ public class VisualNavigatorAgent {
                                 "DONE: task complete", taskDescription);
 
                 com.google.genai.types.GenerateContentResponse response = client.models.generateContent(
-                        "gemini-2.5-computer-use-preview-10-2025",
+                        "gemini-2.5-pro",
                         com.google.genai.types.Content.builder().role("user").parts(java.util.Arrays.asList(
                                 com.google.genai.types.Part.builder().text(prompt).build(),
                                 com.google.genai.types.Part.builder().inlineData(

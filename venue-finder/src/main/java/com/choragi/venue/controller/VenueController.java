@@ -46,7 +46,7 @@ public class VenueController {
 
     private void triggerNegotiator(VenueLead lead) {
 
-        String negotiatorUrl = "http://localhost:8080/api/negotiation/start";
+        String negotiatorUrl = "https://live-negotiator-4j2p5vomta-uc.a.run.app/api/negotiation/start";
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);

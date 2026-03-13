@@ -3,6 +3,7 @@ package com.choragi.promoter.config;
 import com.microsoft.playwright.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -14,43 +15,50 @@ import java.util.List;
 public class PlaywrightConfig {
 
     @Bean
+    @Lazy // THE FIX: Starts the server instantly, delays the heavy browser boot until needed
     public Page playwrightPage() {
-        Playwright playwright = Playwright.create();
+        System.out.println("🚀 Initializing Playwright Configuration...");
 
-        // 1. Detect if we are running in Google Cloud Run
+        // 1. Detect if we are in Google Cloud Run
         boolean isCloudRun = System.getenv("K_SERVICE") != null;
 
-        // 2. Route the profile to /tmp in the cloud (read-only bypass), or current dir locally
+        // 2. Use /tmp in the cloud to avoid Read-Only file system crashes
         String currentDir = isCloudRun ? System.getProperty("java.io.tmpdir") : System.getProperty("user.dir");
         Path userDataDir = Paths.get(currentDir, "chrome-profile");
 
-        // 3. Add the mandatory Docker/Linux sandbox bypass arguments
+        // 3. Base arguments for both local and cloud
         List<String> args = new ArrayList<>(Arrays.asList(
                 "--use-fake-ui-for-media-stream",
-                "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-gpu" // Extra stability for headless cloud containers
+                "--disable-blink-features=AutomationControlled"
         ));
 
+        // THE FIX: Only apply the hardcore server flags if we are actually in the cloud!
+        if (isCloudRun) {
+            args.addAll(Arrays.asList(
+                    "--no-sandbox",
+                    "--disable-setuid-sandbox",
+                    "--disable-dev-shm-usage", // Prevents memory crashes
+                    "--disable-gpu",
+                    "--single-process" // Forces Chrome to run inside the container limits
+            ));
+        }
+
+        System.out.println("🌐 Launching Chromium. Headless Mode: " + isCloudRun);
+
+        Playwright playwright = Playwright.create();
+
+        // 4. Launch the browser
         BrowserContext context = playwright.chromium().launchPersistentContext(userDataDir,
                 new BrowserType.LaunchPersistentContextOptions()
-                        // 4. Force headless mode in the cloud, allow visible mode locally
+                        .setChannel("chrome") // Use real Chrome for Google Ads!
                         .setHeadless(isCloudRun)
                         .setViewportSize(1280, 720)
-                        // Note: Removed .setChannel("chrome") so it uses the safe bundled Chromium
                         .setArgs(args)
         );
 
-        Page activePage;
         if (context.pages().isEmpty()) {
-            activePage = context.newPage();
-        } else {
-            activePage = context.pages().get(0);
+            return context.newPage();
         }
-
-        activePage.bringToFront();
-        return activePage;
+        return context.pages().get(0);
     }
 }

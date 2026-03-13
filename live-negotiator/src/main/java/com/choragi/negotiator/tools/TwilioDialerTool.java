@@ -37,7 +37,9 @@ public class TwilioDialerTool {
         log.info("Choragi Dialer: Sending TwiML payload with dynamic URL");
 
 
-        String twiml = "<Response><Say>Hello, connecting you to the Choragi AI.</Say><Connect><Stream url=\"" + websocketUrl + "\"/></Connect></Response>";
+        // THE FIX: Hardcoding the exact venue-finder WebSocket URL
+        String twiml = "<Response><Say>Hello, connecting you to the Choragi AI.</Say><Connect><Stream url=\"wss://venue-finder-4j2p5vomta-uc.a.run.app/voice-stream\"/></Connect></Response>";
+
 
         int maxRetries = 3;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
