@@ -2,7 +2,7 @@
 
 A comprehensive, multi-agent AI system built to autonomously plan, negotiate, and promote live musical concerts. From scouting venues to negotiating via live phone calls, generating cinematic promo videos, and launching Google Ads — Choragi does it all.
 
-## ☁️ Cloud Deployment Proof
+## ☁️ Google Cloud Run Deployment Proof
 
 https://github.com/user-attachments/assets/5c0ac6bb-4715-4d0c-970d-5470661a70db
 
