@@ -4,10 +4,7 @@ A comprehensive, multi-agent AI system built to autonomously plan, negotiate, an
 
 ## ☁️ Cloud Deployment Proof
 
-*Note: Be sure to unmute the audio.*
-
-**(DRAG AND DROP YOUR .MP4 VIDEO FILE RIGHT HERE IN GITHUB)**
-
+https://github.com/user-attachments/assets/5c0ac6bb-4715-4d0c-970d-5470661a70db
 
 ## 🎯 Project Overview
 
