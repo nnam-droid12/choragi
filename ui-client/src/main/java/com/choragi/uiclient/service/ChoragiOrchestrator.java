@@ -155,7 +155,7 @@ public class ChoragiOrchestrator {
 
                 sendStatusToUI("promoter", "LAUNCHING", Map.of("status", "Google Ads Engine Online"));
 
-                String promoterUrl = "https://3295-102-216-8-3.ngrok-free.app/api/promoter/launch";
+                String promoterUrl = "https://ad09-105-119-10-2.ngrok-free.app/api/promoter/launch";
 
                 restTemplate.postForEntity(promoterUrl, Map.of("artistName", artistName, "websiteUrl", liveUrl), String.class);
 

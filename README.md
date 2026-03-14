@@ -2,6 +2,10 @@
 
 A comprehensive, multi-agent AI system built to autonomously plan, negotiate, and promote live musical concerts. From scouting venues to negotiating via live phone calls, generating cinematic promo videos, and launching Google Ads — Choragi does it all.
 
+## ☁️ Cloud Deployment Proof
+
+
+
 ## 🎯 Project Overview
 
 Choragi is an autonomous event management platform that **finds, books, and promotes live events** through a network of specialized AI agents. The system is triggered entirely by a natural voice conversation with the user. Once launched, it automatically discovers potential venues, calls the venue managers to negotiate space, generates stunning promotional assets, deploys a custom website, and launches targeted digital ad campaigns.
@@ -64,10 +68,10 @@ graph TD
 
 - **Framework**: Java 17+, Spring Boot
 - **AI Models**:
-    - Gemini 2.5 Flash Native Audio (Live API)
-    - Gemini 2.5 Pro (Vision / Computer Use)
-    - Gemini 2.5 Flash Image
-    - Vertex AI Veo 3.0 Fast
+  - Gemini 2.5 Flash Native Audio (Live API)
+  - Gemini 2.5 Pro (Vision / Computer Use)
+  - Gemini 2.5 Flash Image
+  - Vertex AI Veo 3.0 Fast
 - **Telephony**: Twilio WebSockets
 - **Browser Automation**: Playwright (Chromium)
 - **Frontend**: HTML/CSS/JavaScript with SockJS & STOMP WebSockets
@@ -78,11 +82,11 @@ graph TD
 - Java 17+ and Maven
 - Google Cloud Project (with Vertex AI and Cloud Storage enabled)
 - API Keys & Accounts:
-    - Google Gemini API Key
-    - Google Cloud Service Account Credentials (for Vertex AI)
-    - Twilio Account (Phone Number & TwiML App)
-    - Google Ads Account
-    - Ngrok (for local webhook testing)
+  - Google Gemini API Key
+  - Google Cloud Service Account Credentials (for Vertex AI)
+  - Twilio Account (Phone Number & TwiML App)
+  - Google Ads Account
+  - Ngrok (for local webhook testing)
 
 ## 🚀 Quick Start
 
@@ -150,4 +154,4 @@ docker build -t choragi-live-negotiator ./live-negotiator
 
 ## 🤝 Acknowledgements
 
-Special thanks to Google Gemini team for project resources provided for this challenge.
+Special thanks to the Google Gemini team for project resources provided for this challenge.
